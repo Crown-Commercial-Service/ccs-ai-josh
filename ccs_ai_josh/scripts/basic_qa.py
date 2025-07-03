@@ -23,6 +23,7 @@ prompt = hub.pull("rlm/rag-prompt")
 
 user_input = input("Please enter your input: ")
 context = "Alice is allergic to dairy"
+
 messages = prompt.invoke({"question": user_input, "context":context})
 response = llm.invoke(messages)
 print(response.content)
