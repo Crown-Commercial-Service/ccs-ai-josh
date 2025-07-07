@@ -22,16 +22,5 @@ When contributing to this codebase, please follow these guidelines:
 5. Under **no** circumstances should **any** code be pushed directly to the `main` branch.
 
 ## Document Embeddings
-This system uses retrieval-augmented generation (RAG) to provide responses based on the content of relevant documents. These contents are stored in a vector store, which can be recreated through the following steps. Broadly, this follows the standard Azure Portal wizard process detailed [here](https://learn.microsoft.com/en-us/azure/search/search-get-started-portal-import-vectors?tabs=sample-data-storage%2Cmodel-aoai%2Cconnect-data-storage#supported-data-sources), but specific details are provided below:
-### Document Upload
-The current workflow involves uploading documents manually to the blob storage container. To do this:
-1. Open the Azure Portal under the correct resource
-2. Open the `aijosh` storage account
-3. Select the `commercial-intelligence` container from the lefthand menu
-4. Select the `upload` option
-5. Upload the relevant documents
-### Document Embedding and Indexing
-When configuring the wizard:
-* Select the `text-embedding-aida-002` model
-* Do not add any additional AI skills for image vectorisation or text-from-image extraction.
-* Do not add semantic ranking - this is taken care of within the RAG code
+This system uses retrieval-augmented generation (RAG) to provide responses based on the content of relevant documents. These contents are stored in a vector store, which can be recreated by using the Azure AI Search Wizard. Broadly, this follows the standard process detailed [here](https://learn.microsoft.com/en-us/azure/search/search-get-started-portal-import-vectors?tabs=sample-data-storage%2Cmodel-aoai%2Cconnect-data-storage#supported-data-sources), but specific details are provided in the AI Josh documentation.
+Note: after creating the vector store, run `ccs_ai_josh/scripts/modify_index.py` to reformat the index to be compatible for use with LangChain.
