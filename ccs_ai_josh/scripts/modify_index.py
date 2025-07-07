@@ -1,6 +1,7 @@
 # this script should be run straight after creation of the vector store through the Azure AI Search wizard, before any searches
 # at this point the vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
-# we will use the Azure SDK to copy the contents of the "text_vector" field to a new "content_vector" field in the index
+# it also holds the document contents in a field called "chunk", not "content" as langchain expects
+# we will use the Azure SDK to copy the contents of the "text_vector" and "chunk" fields to new fields with appropriate names
 
 import os
 from dotenv import load_dotenv
