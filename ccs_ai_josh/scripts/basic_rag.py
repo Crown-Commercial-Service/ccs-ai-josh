@@ -4,11 +4,8 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from langchain import hub
-from langchain_core.documents import Document
-from langgraph.graph import START, StateGraph
 from typing_extensions import List, TypedDict
-from src.llm_utils import check_index_naming
+from src.llm_utils import check_index_naming, generate_response
 
 load_dotenv()
 
@@ -46,40 +43,7 @@ llm = AzureChatOpenAI(
 )
 print("LLM connected")
 
-# Define prompt for question-answering
-# N.B. for non-US LangSmith endpoints, you may need to specify
-# api_url="https://api.smith.langchain.com" in hub.pull.
-prompt = hub.pull("rlm/rag-prompt")
-
-# Define state for application
-class State(TypedDict):
-    question: str
-    context: List[Document]
-    answer: str
-
-# Define application steps
-def retrieve(state: State):
-    retrieved_docs = vector_store.similarity_search(state["question"])
-    return {"context": retrieved_docs}
-
-def generate(state: State):
-    docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-    messages = prompt.invoke({"question": state["question"], "context": docs_content})
-    response = llm.invoke(messages)
-    return {"answer": response.content}
-
-# Compile application and test
-graph_builder = StateGraph(State).add_sequence([retrieve, generate])
-graph_builder.add_edge(START, "retrieve")
-graph = graph_builder.compile()
-
-def generate_response(question:str):
-    """Invoke the LLM graph to generate a response to a question.
-    """
-    response = graph.invoke({"question": question})
-    return(response["answer"])
-
 while 1<2:
     print("\n")
     user_input = input("What do you want to know?\n\n")
-    print(generate_response(question=user_input))
+    print(generate_response(question=user_input, vector_store=vector_store, llm=llm))
