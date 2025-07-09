@@ -43,8 +43,16 @@ llm = AzureChatOpenAI(
     temperature=0.0
 )
 
-user_input = st.chat_input("How can I help?")
+# user_input = st.chat_input("How can I help?")
 
-if user_input:
+# if user_input:
+#     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
+#     st.write(response)
+
+if user_input := st.chat_input("How can I help?"):
+    # Display user message in chat message container
+    with st.chat_message("user"):
+        st.markdown(user_input)
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
-    st.write(response)
+    with st.chat_message("assistant"):
+        st.markdown(response)
