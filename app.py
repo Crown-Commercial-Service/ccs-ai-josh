@@ -11,6 +11,7 @@ from src.llm_utils import check_index_naming, generate_response
 st.set_page_config(layout="wide")
 
 st.title("AI Josh")
+st.write("An AI system to answer questions about Commercial Intelligence documents.")
 
 load_dotenv()
 
@@ -56,3 +57,26 @@ if user_input := st.chat_input("How can I help?"):
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
     with st.chat_message("assistant"):
         st.markdown(response)
+
+# Add fixed disclaimer at the bottom
+st.markdown(
+    """
+    <style>
+    .fixed-disclaimer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        colour: #333;
+        text-align: centre;
+        padding: 10px 0;
+        font-size: 0.9rem;
+        z-index: 9999;
+    }
+    </style>
+    <div class="fixed-disclaimer">
+         Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
