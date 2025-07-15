@@ -66,9 +66,6 @@ def generate_response(question:str, vector_store, llm):
     graph_builder.add_edge(START, "retrieve_with_store")
     graph = graph_builder.compile()
     response = graph.invoke({"question": question})
-    for doc in response["context"]:
-        print("doc metadata has keys:")
-        print(doc.metadata.keys())
     sources = [doc.metadata["title"] for doc in response["context"]]
     sources_formatted = f"\n\nCitations:"
     # collapsing to unique doc in case of multiple chunks from same doc
