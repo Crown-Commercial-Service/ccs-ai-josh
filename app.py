@@ -55,8 +55,13 @@ if user_input := st.chat_input("How can I help?"):
     with st.chat_message("user"):
         st.markdown(user_input)
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
+    sources_formatted = f"\n\nCitations:"
+    # collapsing to unique doc in case of multiple chunks from same doc
+    for i in set(response['sources']):
+        sources_formatted += f"\n\n* {i}"
+    output = response["answer"] + sources_formatted
     with st.chat_message("assistant"):
-        st.markdown(response)
+        st.markdown(output)
 
 # Add fixed disclaimer at the bottom
 st.markdown(
