@@ -49,7 +49,7 @@ def generate(state: State, llm):
     response = llm.invoke(messages)
     return {"answer": response.content}
 
-def generate_response(question:str, vector_store, llm):
+def generate_response(question:str, vector_store, llm) -> dict:
     """Invoke the LLM graph to generate a response to a question.
     """
     # wrapper functions used here, because:
@@ -67,9 +67,5 @@ def generate_response(question:str, vector_store, llm):
     graph = graph_builder.compile()
     response = graph.invoke({"question": question})
     sources = [doc.metadata["title"] for doc in response["context"]]
-    sources_formatted = f"\n\nCitations:"
-    # collapsing to unique doc in case of multiple chunks from same doc
-    for i in set(sources):
-        sources_formatted += f"\n\n* {i}"
-    output = response["answer"] + sources_formatted
+    output = {'answer':response["answer"], 'sources':sources}
     return(output)
