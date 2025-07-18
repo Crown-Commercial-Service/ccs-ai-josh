@@ -1,0 +1,30 @@
+function extractCIDocsURLs.appscript() {
+  var folderIds = [
+    // Supplier Factsheets A-H
+    PropertiesService.getScriptProperties().getProperty('CI_FACTSHEETS_AH_URI'),
+    // Supplier Factsheets I-Z
+    PropertiesService.getScriptProperties().getProperty('CI_FACTSHEETS_IZ_URI'),
+    // Market Reports
+    PropertiesService.getScriptProperties().getProperty('CI_MARKET_REPORTS_URI')
+  ];
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.clearContents();
+  sheet.appendRow(["Folder Name", "Folder ID", "File Name", "File URL"]);
+
+  folderIds.forEach(function(folderId) {
+    var folder = DriveApp.getFolderById(folderId);
+    var folderName = folder.getName();
+    var files = folder.getFiles();
+
+    while (files.hasNext()) {
+      var file = files.next();
+      sheet.appendRow([
+        folderName,
+        folderId,
+        file.getName(),
+        file.getUrl()
+      ]);
+    }
+  });
+}
