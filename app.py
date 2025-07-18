@@ -1,5 +1,6 @@
-import streamlit as st
 import os
+import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv
 from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
@@ -44,20 +45,26 @@ llm = AzureChatOpenAI(
     temperature=0.0
 )
 
-# user_input = st.chat_input("How can I help?")
-
-# if user_input:
-#     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
-#     st.write(response)
+CI_docs_URLs = pd.read_csv("data/CI_document_URLs.csv")
 
 if user_input := st.chat_input("How can I help?"):
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(user_input)
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
-    sources_formatted = f"\n\nCitations:"
     # collapsing to unique doc in case of multiple chunks from same doc
-    for i in set(response['sources']):
+    docs = list(set(response['sources']))
+    # convert file names to links to docs
+    doc_links = []
+    for i in docs:
+        print(i)
+        document_URL = CI_docs_URLs[CI_docs_URLs['File Name']==i].iloc[0,:]['File URL']
+        print(document_URL)
+        doc_link = f"[{i}]({document_URL})"
+        print(doc_link)
+        doc_links.append(doc_link)
+    sources_formatted = f"\n\nCitations:"
+    for i in doc_links:
         sources_formatted += f"\n\n* {i}"
     output = response["answer"] + sources_formatted
     with st.chat_message("assistant"):
