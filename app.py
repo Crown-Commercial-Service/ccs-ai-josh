@@ -57,11 +57,8 @@ if user_input := st.chat_input("How can I help?"):
     # convert file names to links to docs
     doc_links = []
     for i in docs:
-        print(i)
         document_URL = CI_docs_URLs[CI_docs_URLs['File Name']==i].iloc[0,:]['File URL']
-        print(document_URL)
         doc_link = f"[{i}]({document_URL})"
-        print(doc_link)
         doc_links.append(doc_link)
     sources_formatted = f"\n\nCitations:"
     for i in doc_links:
