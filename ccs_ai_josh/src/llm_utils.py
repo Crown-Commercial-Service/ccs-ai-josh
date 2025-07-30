@@ -41,6 +41,9 @@ prompt = hub.pull("rlm/rag-prompt")
 # Define application steps
 def retrieve(state: State, vector_store):
     retrieved_docs = vector_store.similarity_search(state["question"])
+    for i in retrieved_docs:
+        print(i.metadata['title'])
+        print(i.metadata['@search.score'])
     return {"context": retrieved_docs}
 
 def generate(state: State, llm):
