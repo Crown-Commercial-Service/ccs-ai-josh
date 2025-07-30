@@ -41,6 +41,9 @@ prompt = hub.pull("rlm/rag-prompt")
 # Define application steps
 def retrieve(state: State, vector_store):
     retrieved_docs = vector_store.similarity_search(state["question"])
+    for i in retrieved_docs:
+        print(i.metadata['title'])
+        print(i.metadata['@search.score'])
     return {"context": retrieved_docs}
 
 def generate(state: State, llm):
@@ -49,7 +52,7 @@ def generate(state: State, llm):
     response = llm.invoke(messages)
     return {"answer": response.content}
 
-def generate_response(question:str, vector_store, llm):
+def generate_response(question:str, vector_store, llm) -> dict:
     """Invoke the LLM graph to generate a response to a question.
     """
     # wrapper functions used here, because:
@@ -66,4 +69,6 @@ def generate_response(question:str, vector_store, llm):
     graph_builder.add_edge(START, "retrieve_with_store")
     graph = graph_builder.compile()
     response = graph.invoke({"question": question})
-    return(response["answer"])
+    sources = [doc.metadata["title"] for doc in response["context"]]
+    output = {'answer':response["answer"], 'sources':sources}
+    return(output)
