@@ -46,16 +46,19 @@ truthset_sheet_name = 'Questions'
 
 # Read the sheet into a pandas DataFrame
 truthset = pd.read_excel(truthset_file_path, sheet_name=truthset_sheet_name)
-# take first 5 for debugging, delete this step when everything is working
-truthset = truthset.head(2)
+# drop any blank columns that were inserted by parsing the spreadsheet
+truthset = truthset.dropna(axis=1, how='all')
 # send each question to the model and store the response in the truthset df
 responses = []
 for i in truthset['Question']:
     response = generate_response(question=i, vector_store=vector_store, llm=llm)
     responses.append(response)
+    if len(responses) % 10 == 0:
+        print(f"Responses generated for {len(responses)} questions")
 truthset["Answer"] = [i['answer'] for i in responses]
 truthset["Retrieved Files"] = [i['source_names'] for i in responses]
 truthset["Retrieved Contents"] = [i['source_contents'] for i in responses]
+print("Responses generated for all questions")
 # evaluate each response
 # THIS IS SENSITIVE TO THE STRUCTURE OF THE TRUTHSET SPREADSHEET
 # if the order of columns changes, the iloc statements need to be reviewed
@@ -63,10 +66,6 @@ correctness = []
 retrieval = []
 groundedness = []
 for i in range(len(truthset)):
-    # print(f"Question: {truthset.iloc[i,3]}")
-    # print(f"Ref answer: {truthset.iloc[i,4]}")
-    # print(f"LLM answer: {truthset.iloc[i,-1]}")
-    # print(f"LLM context: {responses[i]['source_contents']}")
     score = evaluate_response(
         llm=llm,
         question=truthset.iloc[i,3],
@@ -77,6 +76,9 @@ for i in range(len(truthset)):
     correctness.append(score['correctness'])
     retrieval.append(score['retrieval'])
     groundedness.append(score['groundedness'])
+    if len(correctness) % 10 == 0:
+        print(f"Responses evaluated for {len(correctness)} questions")
+print("Responses evaluated for all questions")
 # store the scores in the truthset df
 truthset['Correctness'] = correctness
 truthset['Retrieval'] = retrieval
