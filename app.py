@@ -6,7 +6,6 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from typing_extensions import List, TypedDict
 from src.llm_utils import check_index_naming, generate_response
 
 st.set_page_config(layout="wide")
@@ -53,7 +52,7 @@ if user_input := st.chat_input("How can I help?"):
         st.markdown(user_input)
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
     # collapsing to unique doc in case of multiple chunks from same doc
-    docs = list(set(response['sources']))
+    docs = list(set(response['source_names']))
     # convert file names to links to docs
     doc_links = []
     for i in docs:
