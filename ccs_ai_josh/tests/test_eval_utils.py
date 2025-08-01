@@ -18,12 +18,17 @@ llm = AzureChatOpenAI(
 q = "What is the capital of France?"
 ref_ans = "The capital of France is Paris."
 gen_ans_correct = "Paris is the capital of France."
-gen_ans_incorrect = "Marseille is the capital of France"
+gen_ans_incorrect_1 = "Marseille is the capital of France"
+gen_ans_incorrect_2 = "Madrid is the capital of Spain"
 chunk1 = "European capitals: UK=London, France=Paris, Spain=Madrid, Germany=Berlin"
 chunk2 = "French cities: Marseille, Paris (capital), Lyon, Versailles"
-chunk3 = "Spanish cities: Barcelona, Madrid, Seville"
+chunk3 = "Spanish cities: Barcelona, Madrid (capital), Seville"
 
-def test_perfect_response():
+def test_correct():
+    """
+    The retrieved context is highly relevant,
+    and the model gets the answer right.
+    """
     results = evaluate_response(
         llm=llm,
         question=q,
@@ -35,14 +40,66 @@ def test_perfect_response():
     assert results["retrieval"] == 10
     assert results["groundedness"] == 10
 
-def test_incorrect_response():
+def test_correct_low_groundedness():
+    """
+    The retrieved context is irrelevant,
+    the model ignores it and gets the answer right.
+    """
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_incorrect,
+        response=gen_ans_correct,
+        context=[chunk3],
+        ref_answer=ref_ans
+    )
+    assert results["correctness"] == 10
+    assert results["retrieval"] == 1
+    assert results["groundedness"] == 1
+
+def test_incorrect_low_groundedness():
+    """
+    The retrieved context is highly relevant,
+    the model ignores it and gets the answer wrong.
+    """
+    results = evaluate_response(
+        llm=llm,
+        question=q,
+        response=gen_ans_incorrect_1,
         context=[chunk1, chunk2],
         ref_answer=ref_ans
     )
     assert results["correctness"] == 1
     assert results["retrieval"] == 10
+    assert results["groundedness"] == 1
+
+def test_incorrect_low_retrieval():
+    """
+    The retrieved context is irrelevant,
+    the model uses it and gets the answer wrong.
+    """
+    results = evaluate_response(
+        llm=llm,
+        question=q,
+        response=gen_ans_incorrect_2,
+        context=[chunk3],
+        ref_answer=ref_ans
+    )
+    assert results["correctness"] == 1
+    assert results["retrieval"] == 1
+    assert results["groundedness"] == 10
+
+def test_incorrect_low_groundedness_low_retrieval():
+    """
+    The retrieved context is irrelevant,
+    the model ignores it but gets the answer wrong.
+    """
+    results = evaluate_response(
+        llm=llm,
+        question=q,
+        response=gen_ans_incorrect_1,
+        context=[chunk3],
+        ref_answer=ref_ans
+    )
+    assert results["correctness"] == 1
+    assert results["retrieval"] == 1
     assert results["groundedness"] == 1
