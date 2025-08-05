@@ -60,18 +60,16 @@ truthset["Retrieved Files"] = [i['source_names'] for i in responses]
 truthset["Retrieved Contents"] = [i['source_contents'] for i in responses]
 print("Responses generated for all questions")
 # evaluate each response
-# THIS IS SENSITIVE TO THE STRUCTURE OF THE TRUTHSET SPREADSHEET
-# if the order of columns changes, the iloc statements need to be reviewed
 correctness = []
 retrieval = []
 groundedness = []
 for i in range(len(truthset)):
     score = evaluate_response(
         llm=llm,
-        question=truthset.iloc[i,3],
-        response=truthset.iloc[i,-1],
-        context=responses[i]['source_contents'],
-        ref_answer=truthset.iloc[i,4]
+        question=truthset['Question'][i],
+        answer=truthset['Answer'][i],
+        context=truthset['Retrieved Contents'][i],
+        ref_answer=truthset['True Answer'][i]
     )
     correctness.append(score['correctness'])
     retrieval.append(score['retrieval'])
