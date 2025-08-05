@@ -32,7 +32,7 @@ def test_correct():
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_correct,
+        answer=gen_ans_correct,
         context=[chunk1, chunk2],
         ref_answer=ref_ans
     )
@@ -48,7 +48,7 @@ def test_correct_low_groundedness():
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_correct,
+        answer=gen_ans_correct,
         context=[chunk3],
         ref_answer=ref_ans
     )
@@ -64,7 +64,7 @@ def test_incorrect_low_groundedness():
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_incorrect_1,
+        answer=gen_ans_incorrect_1,
         context=[chunk1, chunk2],
         ref_answer=ref_ans
     )
@@ -80,7 +80,7 @@ def test_incorrect_low_retrieval():
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_incorrect_2,
+        answer=gen_ans_incorrect_2,
         context=[chunk3],
         ref_answer=ref_ans
     )
@@ -96,7 +96,7 @@ def test_incorrect_low_groundedness_low_retrieval():
     results = evaluate_response(
         llm=llm,
         question=q,
-        response=gen_ans_incorrect_1,
+        answer=gen_ans_incorrect_1,
         context=[chunk3],
         ref_answer=ref_ans
     )
