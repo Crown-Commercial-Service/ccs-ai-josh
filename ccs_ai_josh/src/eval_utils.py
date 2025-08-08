@@ -138,10 +138,7 @@ def test_doc_match(retrieved_doc:str, ref_doc:str) -> bool:
     Returns:
         match_status: whether the retrieved document matches the reference document
     """
-    if retrieved_doc == ref_doc:
-        return True
-    else:
-        return False
+    return retrieved_doc == ref_doc
 
 def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:list, retrieved_docs:list, ref_answer:str, ref_doc:str) -> dict:
     """Evaluates a response by calculating correctness, retrieval accuracy and groundedness.
@@ -173,6 +170,7 @@ def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:lis
         generated_answer=answer
     )
     document_match = test_doc_match(
+        # here we assume that retrieved docs are ordered by most to least relevant
         retrieved_doc=retrieved_docs[0],
         ref_doc=ref_doc
     )
