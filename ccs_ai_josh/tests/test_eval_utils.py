@@ -23,6 +23,7 @@ gen_ans_incorrect_2 = "Madrid is the capital of Spain"
 chunk1 = "European capitals: UK=London, France=Paris, Spain=Madrid, Germany=Berlin"
 chunk2 = "French cities: Marseille, Paris (capital), Lyon, Versailles"
 chunk3 = "Spanish cities: Barcelona, Madrid (capital), Seville"
+doc_names = ['european_capitals.txt', 'french_cities.txt', 'spanish_cities.txt']
 
 def test_correct():
     """
@@ -34,11 +35,14 @@ def test_correct():
         question=q,
         answer=gen_ans_correct,
         context=[chunk1, chunk2],
-        ref_answer=ref_ans
+        retrieved_docs=doc_names[0:1],
+        ref_answer=ref_ans,
+        ref_doc=doc_names[0]
     )
     assert results["correctness"] == 10
     assert results["retrieval"] == 10
     assert results["groundedness"] == 10
+    assert results["document_match"] == True
 
 def test_correct_low_groundedness():
     """
@@ -50,11 +54,14 @@ def test_correct_low_groundedness():
         question=q,
         answer=gen_ans_correct,
         context=[chunk3],
-        ref_answer=ref_ans
+        retrieved_docs=[doc_names[2]],
+        ref_answer=ref_ans,
+        ref_doc=doc_names[0]
     )
     assert results["correctness"] == 10
     assert results["retrieval"] == 1
     assert results["groundedness"] == 1
+    assert results["document_match"] == False
 
 def test_incorrect_low_groundedness():
     """
@@ -66,11 +73,14 @@ def test_incorrect_low_groundedness():
         question=q,
         answer=gen_ans_incorrect_1,
         context=[chunk1, chunk2],
-        ref_answer=ref_ans
+        retrieved_docs=[doc_names[0],doc_names[1]],
+        ref_answer=ref_ans,
+        ref_doc=doc_names[0]
     )
     assert results["correctness"] == 1
     assert results["retrieval"] == 10
     assert results["groundedness"] == 1
+    assert results["document_match"] == True
 
 def test_incorrect_low_retrieval():
     """
@@ -82,11 +92,14 @@ def test_incorrect_low_retrieval():
         question=q,
         answer=gen_ans_incorrect_2,
         context=[chunk3],
-        ref_answer=ref_ans
+        retrieved_docs=[doc_names[2],doc_names[0]],
+        ref_answer=ref_ans,
+        ref_doc=doc_names[0]
     )
     assert results["correctness"] == 1
     assert results["retrieval"] == 1
     assert results["groundedness"] == 10
+    assert results["document_match"] == False
 
 def test_incorrect_low_groundedness_low_retrieval():
     """
@@ -98,8 +111,11 @@ def test_incorrect_low_groundedness_low_retrieval():
         question=q,
         answer=gen_ans_incorrect_1,
         context=[chunk3],
-        ref_answer=ref_ans
+        retrieved_docs=[doc_names[2],doc_names[0]],
+        ref_answer=ref_ans,
+        ref_doc=doc_names[0]
     )
     assert results["correctness"] == 1
     assert results["retrieval"] == 1
     assert results["groundedness"] == 1
+    assert results["document_match"] == False
