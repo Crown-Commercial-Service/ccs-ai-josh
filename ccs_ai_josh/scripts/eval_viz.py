@@ -16,6 +16,7 @@ results_by_question_type = results.groupby('Question Type')[['Correctness', 'Ret
 print(results_by_question_type)
 results_by_question_type.to_csv(os.path.join('data', 'results_by_question_type.csv'), index=True)
 
+# correctness histograms
 plt.subplot(1, 2, 1)
 sns.histplot(data=results[results['Document Type']=='Fact Sheet'], x='Correctness')
 plt.title('Fact Sheet')
@@ -24,3 +25,16 @@ sns.histplot(data=results[results['Document Type']=='Market Report'], x='Correct
 plt.title('Market Report')
 plt.tight_layout()
 plt.savefig(os.path.join('data', 'correctness_hist.svg'), format='svg')
+
+# file match histograms
+# restrict to pos controls, as neg controls will be non-matching by design
+results_pos = results[results['Question Type']=='Positive'].copy()
+results_pos['Document Match'] = results_pos['Document Match'].astype(str)
+plt.subplot(1, 2, 1)
+sns.histplot(data=results_pos[results_pos['Document Type']=='Fact Sheet'], x='Document Match')
+plt.title('Fact Sheet')
+plt.subplot(1, 2, 2)
+sns.histplot(data=results_pos[results_pos['Document Type']=='Market Report'], x='Document Match')
+plt.title('Market Report')
+plt.tight_layout()
+plt.savefig(os.path.join('data', 'docmatch_hist.svg'), format='svg')
