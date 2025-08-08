@@ -51,18 +51,12 @@ if user_input := st.chat_input("How can I help?"):
     with st.chat_message("user"):
         st.markdown(user_input)
     response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
-    # collapsing to unique doc in case of multiple chunks from same doc
-    docs = list(set(response['source_names']))
-    # convert file names to links to docs
-    doc_links = []
-    for i in docs:
-        document_URL = CI_docs_URLs[CI_docs_URLs['File Name']==i].iloc[0,:]['File URL']
-        doc_link = f"[{i}]({document_URL})"
-        doc_links.append(doc_link)
-    sources_formatted = f"\n\nCitations:"
-    for i in doc_links:
-        sources_formatted += f"\n\n* {i}"
-    output = response["answer"] + sources_formatted
+    # only displaying link to document that holds most relevant chunk
+    relevant_doc = response['source_names'][0]
+    # convert file name to links to docs
+    doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==relevant_doc].iloc[0,:]['File URL']
+    doc_link = f"\n\n[{relevant_doc}]({doc_URL})"
+    output = response["answer"] + doc_link
     with st.chat_message("assistant"):
         st.markdown(output)
 
