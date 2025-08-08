@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
@@ -63,17 +64,22 @@ print("Responses generated for all questions")
 correctness = []
 retrieval = []
 groundedness = []
+document_match = []
 for i in range(len(truthset)):
     score = evaluate_response(
         llm=llm,
         question=truthset['Question'][i],
         answer=truthset['Answer'][i],
         context=truthset['Retrieved Contents'][i],
-        ref_answer=truthset['True Answer'][i]
+        # strip filetype suffix from each filename before testing match
+        retrieved_docs=[re.sub(r'.pdf$', '', i, flags=re.IGNORECASE) for i in truthset['Retrieved Files'][i]],
+        ref_answer=truthset['True Answer'][i],
+        ref_doc=truthset['File'][i]
     )
     correctness.append(score['correctness'])
     retrieval.append(score['retrieval'])
     groundedness.append(score['groundedness'])
+    document_match.append(score['document_match'])
     if len(correctness) % 10 == 0:
         print(f"Responses evaluated for {len(correctness)} questions")
 print("Responses evaluated for all questions")
@@ -81,6 +87,7 @@ print("Responses evaluated for all questions")
 truthset['Correctness'] = correctness
 truthset['Retrieval'] = retrieval
 truthset['Groundedness'] = groundedness
+truthset['Document Match'] = document_match
 # rearrange columns to put context columns on right, because these have loads of content
 columns = list(truthset.columns)
 cols_to_move = ['Retrieved Files', 'Retrieved Contents']
