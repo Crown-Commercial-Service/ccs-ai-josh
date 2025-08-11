@@ -75,10 +75,9 @@ for i in range(len(truthset)):
         question=truthset['Question'][i],
         answer=truthset['Answer'][i],
         context=truthset['Retrieved Contents'][i],
-        # strip filetype suffix from each filename before testing match
         retrieved_docs=retrieved_docnames,
         ref_answer=truthset['True Answer'][i],
-        ref_doc=truthset['File'][i]
+        ref_doc=truthset['File'][i].strip()
     )
     correctness.append(score['correctness'])
     retrieval.append(score['retrieval'])
