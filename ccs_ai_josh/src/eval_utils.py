@@ -1,5 +1,6 @@
 from langchain_openai import AzureChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
+from unicodedata import normalize
 
 def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, reference_answer:str) -> int:
     """Uses an LLM-as-a-judge approach to score the similarity between a generated answer and reference answer.
@@ -138,7 +139,8 @@ def test_doc_match(retrieved_doc:str, ref_doc:str) -> bool:
     Returns:
         match_status: whether the retrieved document matches the reference document
     """
-    return retrieved_doc == ref_doc
+    # handling differences in encoding, focusing just on matching string content
+    return normalize('NFC', retrieved_doc) == normalize('NFC', ref_doc)
 
 def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:list, retrieved_docs:list, ref_answer:str, ref_doc:str) -> dict:
     """Evaluates a response by calculating correctness, retrieval accuracy and groundedness.
