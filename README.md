@@ -33,3 +33,13 @@ If you want to run the user interface locally for development or testing purpose
 ```
 poetry run streamlit run app.py
 ```
+
+## Running Model Evaluation
+If you want to evaluate the performance of the system against the truthset:
+1. Download the file `AI Josh Truthset.xlsx` from Google Drive
+2. Place it in `ccs_ai_josh/data/`
+3. Run the evaluation pipeline:
+    ```
+    dvc repro
+    ```
+Note that the full evaluation pipeline submits a total of 664 queries to an LLM each time it is run, so plan your evaluation experiments carefully.
