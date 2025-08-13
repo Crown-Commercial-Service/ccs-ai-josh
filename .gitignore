@@ -1,3 +1,4 @@
 .env
 **__pycache__**
 data/*
+/evaluation_results.csv
