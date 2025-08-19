@@ -1,6 +1,13 @@
+import os
 from langchain_openai import AzureChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from unicodedata import normalize
+
+def load_prompt(prompt_name):
+    prompt_path = os.path.join('ccs_ai_josh', 'prompts', prompt_name)
+    with open(prompt_path, 'r', encoding='utf-8') as file:
+        prompt_text = file.read()
+    return prompt_text
 
 def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, reference_answer:str) -> int:
     """Uses an LLM-as-a-judge approach to score the similarity between a generated answer and reference answer.
@@ -11,19 +18,8 @@ def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, r
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = """
-    You are an expert evaluator for question-answering systems. For each input, you are given:
-    - The original question
-    - The generated answer from a system to be evaluated
-    - The reference (correct) answer
+    system_prompt = load_prompt('correctness_score_prompt.txt')
 
-    Your task is to compare the generated answer to the reference answer and assign a score from 1 to 10, where:
-    10 means the generated answer matches the reference answer perfectly in content, completeness, and factual accuracy;
-    1 means the generated answer is completely incorrect or irrelevant;
-    Intermediate numbers reflect partial or incomplete matches.
-
-    Provide ONLY the integer score, and nothing else.
-    """
     user_prompt = f"""Question: {question}
 
     Reference answer: {reference_answer}
@@ -52,20 +48,8 @@ def score_retrieval(llm:AzureChatOpenAI, question:str, context:list) -> int:
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = """
-    You are an expert evaluator for question-answering systems. For each input, you are given:
-    - The original question
-    - The retrieved context/document that the system would use for answering
+    system_prompt = load_prompt('retrieval_score_prompt.txt')
 
-    Your task is to assess whether the retrieved context is likely to contain the information needed to answer the question correctly. 
-
-    Assign a score from 1 to 10:
-    10 means the context contains all the information required to answer the question;
-    1 means it contains none of the required information.
-    Intermediate numbers reflect partial coverage or relevance.
-
-    Provide ONLY the integer score, and nothing else.
-    """
     user_prompt = f"""Question: {question}
 
     Retrieved context: {context}
@@ -95,21 +79,8 @@ def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = """
-    You are an expert evaluator for question-answering systems. For each input, you are given:
-    - The original question
-    - The context/retrieved document provided to the system
-    - The generated answer from the system
+    system_prompt = load_prompt('groundedness_score_prompt.txt')
 
-    Your task is to determine how well the generated answer is supported by information from the context. The answer should not introduce facts not present in the context. 
-
-    Assign a score from 1 to 10:
-    10 means the answer is fully supported by the context and contains no extra or hallucinated content;
-    1 means the answer is completely unsupported or fabricated, or uses information that does not appear in the context.
-    Intermediate numbers reflect partial groundedness.
-
-    Provide ONLY the integer score, and nothing else.
-    """
     user_prompt = f"""
     Context/retrieved document: {context}
 

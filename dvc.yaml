@@ -4,9 +4,9 @@ stages:
     deps:
     - ccs_ai_josh/scripts/evaluate.py
     outs:
-    - ccs_ai_josh/data/evaluation_results.csv
+    - data/evaluation_results.csv
   visualize:
     cmd: poetry run python ccs_ai_josh/scripts/visualize.py
     deps:
     - ccs_ai_josh/scripts/visualize.py
-    - ccs_ai_josh/data/evaluation_results.csv
+    - data/evaluation_results.csv
