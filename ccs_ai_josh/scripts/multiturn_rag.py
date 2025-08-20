@@ -64,7 +64,7 @@ def query_or_respond(state: MessagesState):
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
     """Retrieve information related to a query"""
-    retrieved_docs = vector_store.similarity_search(query)
+    retrieved_docs = vector_store.similarity_search(query, k=5)
     serialized = "\n\n".join(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}" for doc in retrieved_docs)
     )
@@ -192,43 +192,31 @@ def answer_once(
             return m.get("tool_calls")
         return None
 
-    def _content(m):
-        if hasattr(m, "content"):
-            c = m.content
-        elif isinstance(m, dict):
-            c = m.get("content", "")
-        else:
-            c = ""
-        if isinstance(c, list):
-            # Flatten list content (e.g. blocks) into text
-            c = "\n".join(str(part) for part in c if part)
-        return c if isinstance(c, str) else str(c)
-
     # Set index position of last tool call
     i = len(final_messages) - 1
     while i >= 0 and _mtype(final_messages[i]) == "ai" and not _tool_calls(final_messages[i]):
         i -= 1
 
     # Collect the last consecutive block of tool messages
-    context_parts = []
+    source_names = []
+    source_contents = []
     while i >= 0 and _mtype(final_messages[i]) == "tool":
-        context_parts.append(_content(final_messages[i]))
+        # note that this depends on the ToolMessage object having an `artifact` attribute
+        # this may change in future versions of langchain
+        source_names.append(final_messages[i].artifact[0].metadata['title'])
+        source_contents.append(final_messages[i].artifact[0].metadata['chunk'])
         i -= 1
+    response = {
+        "answer": last_ai_content,
+        "source_names": source_names,
+        "source_contents": source_contents
+    }
+    return response
 
-    context_text = "\n\n".join(reversed([p for p in context_parts if p]))
-
-    return {"answer": last_ai_content, "context": context_text}
-
-while 1<2:
-    user_input = input("What do you want to know?\n\n")
-    # for step in graph.stream(
-    #     {"messages": [{"role": "user", "content": user_input}]},
-    #     stream_mode="values",
-    #     config=config
-    # ):
-    #     step["messages"][-1].pretty_print()
-    #     print(step["messages"][-1].keys())
+while True:
+    user_input = input("What do you want to know?\n")
     response = answer_once(graph, user_input)
-    print(response['context'])
+    print(response['source_contents'])
+    print(response['source_names'])
     print(response['answer'])
 
