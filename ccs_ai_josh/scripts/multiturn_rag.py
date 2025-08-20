@@ -74,14 +74,16 @@ tools = ToolNode([retrieve])
 # 3. Generate a response using the retrieved context
 def generate(state: MessagesState):
     """Generate answer"""
+    # capture the most recent tool messages
     recent_tool_messages = []
     for message in reversed(state["messages"]):
         if message.type == "tool":
             recent_tool_messages.append(message)
         else:
             break
+    # put the recent tool messages into their original order
     tool_messages = recent_tool_messages[::-1]
-    # format into prompt
+    # format chat exchange and results of tool calls into prompt
     docs_content = "\n\n".join(doc.content for doc in tool_messages)
     system_message_content = (
         "You are an assistant for question-answering tasks."
@@ -163,10 +165,12 @@ def answer_once(
     final_messages = []
 
     for step in stream_turn(graph, user_input, thread_id):
+        # in case there have been no messages yet, use `get` to pass a default value (empty list)
         messages = step.get("messages", [])
         if messages:
             final_messages = messages
             msg = messages[-1]
+            # extract content, handling cases where messages are either dicts or object attributes
             if hasattr(msg, "content"):
                 last_ai_content = msg.content
             elif isinstance(msg, dict):
@@ -200,7 +204,7 @@ def answer_once(
             c = "\n".join(str(part) for part in c if part)
         return c if isinstance(c, str) else str(c)
 
-    # Skip trailing final assistant message(s) without tool_calls
+    # Set index position of last tool call
     i = len(final_messages) - 1
     while i >= 0 and _mtype(final_messages[i]) == "ai" and not _tool_calls(final_messages[i]):
         i -= 1
