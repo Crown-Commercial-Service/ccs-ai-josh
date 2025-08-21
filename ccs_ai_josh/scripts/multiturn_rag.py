@@ -192,19 +192,24 @@ def answer_once(
             return m.get("tool_calls")
         return None
 
-    # Set index position of last tool call
-    i = len(final_messages) - 1
-    while i >= 0 and _mtype(final_messages[i]) == "ai" and not _tool_calls(final_messages[i]):
-        i -= 1
-
-    # Collect the last consecutive block of tool messages
+    # here we check if the model used the retrieval tool, and if so we collect its output
     source_names = []
     source_contents = []
-    while i >= 0 and _mtype(final_messages[i]) == "tool":
-        # note that this depends on the ToolMessage object having an `artifact` attribute
-        # this may change in future versions of langchain
-        source_names.append(final_messages[i].artifact[0].metadata['title'])
-        source_contents.append(final_messages[i].artifact[0].metadata['chunk'])
+    last_tool_message_found = False
+    # Set start position to most recent message
+    i = len(final_messages) - 1
+    # run through messages until the most recent tool message is found, and grab its result
+    while i >= 0:
+        message = final_messages[i]
+        if _mtype(message) == "tool":
+            last_tool_message_found = True
+            # note that this depends on the ToolMessage object having an `artifact` attribute
+            # this may change in future versions of langchain
+            source_names.append(message.artifact[0].metadata['title'])
+            source_contents.append(message.artifact[0].metadata['chunk'])
+        elif last_tool_message_found:
+            # We've reached the first non-tool message after the last tool message
+            break
         i -= 1
     response = {
         "answer": last_ai_content,
@@ -216,7 +221,9 @@ def answer_once(
 while True:
     user_input = input("What do you want to know?\n")
     response = answer_once(graph, user_input)
-    print(response['source_contents'])
+    for i in range(len(response['source_contents'])):
+        print(f"###### Chunk {i+1} ######")
+        print(response['source_contents'][i])
     print(response['source_names'])
     print(response['answer'])
 
