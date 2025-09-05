@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from typing import Optional, Iterator, Dict, Any
 from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
+from langchain_core.documents.base import Document
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
 from langchain_community.vectorstores.azuresearch import AzureSearch
@@ -185,31 +186,35 @@ def answer_once(
             return m.get("type") or m.get("role")
         return None
 
-    def _tool_calls(m):
-        if hasattr(m, "tool_calls"):
-            return m.tool_calls
-        if isinstance(m, dict):
-            return m.get("tool_calls")
-        return None
-
     # here we check if the model used the retrieval tool, and if so we collect its output
     source_names = []
     source_contents = []
-    last_tool_message_found = False
     # Set start position to most recent message
     i = len(final_messages) - 1
     # run through messages until the most recent tool message is found, and grab its result
+    last_tool_message_found = False
     while i >= 0:
         message = final_messages[i]
-        if _mtype(message) == "tool":
-            last_tool_message_found = True
-            # note that this depends on the ToolMessage object having an `artifact` attribute
-            # this may change in future versions of langchain
-            source_names.append(message.artifact[0].metadata['title'])
-            source_contents.append(message.artifact[0].metadata['chunk'])
-        elif last_tool_message_found:
-            # We've reached the first non-tool message after the last tool message
+        if last_tool_message_found:
+            # We've reached the most recent non-tool message after the last tool message, so exit
             break
+        elif _mtype(message) == "tool":
+            # we've found the most recent tool message, so now we need to extract the relevant info
+            last_tool_message_found = True
+            # loop through all of the chunks that the message has retrieved
+            for doc in message.artifact:
+                # Check if the artifact is a langchain_core.documents.base.Document object (retrieval did occur), or a dict (retrieval didn't occur)
+                if isinstance(doc, Document):
+                    # retrieval did occur, so return the doc names and contents
+                    source_names.append(doc.metadata['title'])
+                    source_contents.append(doc.metadata['chunk'])
+                else:
+                    # retrieval didn't occur, so don't return any citations
+                    source_names = []
+                    source_contents = []
+        else:
+            # this isn't a tool message, so keep looking
+            pass
         i -= 1
     response = {
         "answer": last_ai_content,
