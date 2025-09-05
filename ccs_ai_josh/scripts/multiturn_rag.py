@@ -231,4 +231,3 @@ while True:
         print(response['source_contents'][i])
     print(response['source_names'])
     print(response['answer'])
-
