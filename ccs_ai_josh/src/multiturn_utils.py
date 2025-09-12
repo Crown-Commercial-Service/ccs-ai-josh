@@ -14,15 +14,18 @@ def query_or_respond(state: MessagesState, llm: Any, retrieve_tool: Any):
     # the response will contain the most recent response and the previous responses
     return {"messages": [response]}
 
-@tool(response_format="content_and_artifact")
-def retrieve(query: str, vector_store: Any):
-    """Retrieve information related to a query"""
-    retrieved_docs = vector_store.similarity_search(query, k=5)
-    serialized = "\n\n".join(
-        f"Source: {doc.metadata}\nContent: {doc.page_content}"
-        for doc in retrieved_docs
-    )
-    return serialized, retrieved_docs
+def create_bound_retrieve_tool(vector_store):
+    """Create a properly decorated retrieve tool bound to a specific vector store"""
+    @tool(response_format="content_and_artifact")
+    def retrieve_bound(query: str):
+        """Retrieve information related to a query"""
+        retrieved_docs = vector_store.similarity_search(query, k=5)
+        serialized = "\n\n".join(
+            f"Source: {doc.metadata}\nContent: {doc.page_content}"
+            for doc in retrieved_docs
+        )
+        return serialized, retrieved_docs
+    return retrieve_bound
 
 def generate(state: MessagesState, llm: Any):
     """Generate answer"""
@@ -154,19 +157,6 @@ def answer_once(
         "source_contents": source_contents
     }
     return response
-
-def create_bound_retrieve_tool(vector_store):
-    """Create a properly decorated retrieve tool bound to a specific vector store"""
-    @tool(response_format="content_and_artifact")
-    def retrieve_bound(query: str):
-        """Retrieve information related to a query"""
-        retrieved_docs = vector_store.similarity_search(query, k=5)
-        serialized = "\n\n".join(
-            f"Source: {doc.metadata}\nContent: {doc.page_content}"
-            for doc in retrieved_docs
-        )
-        return serialized, retrieved_docs
-    return retrieve_bound
 
 def build_graph(llm, vector_store):
     # create a properly decorated tool bound to the vector store
