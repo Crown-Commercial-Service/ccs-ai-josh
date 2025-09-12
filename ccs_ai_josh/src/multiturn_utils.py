@@ -7,9 +7,9 @@ from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 
-def query_or_respond(state: MessagesState, llm: Any):
+def query_or_respond(state: MessagesState, llm: Any, retrieve_tool: Any):
     "Generate tool call for retrieval, or respond directly"
-    llm_with_tools = llm.bind_tools([retrieve])
+    llm_with_tools = llm.bind_tools([retrieve_tool])
     response = llm_with_tools.invoke(state["messages"])
     # the response will contain the most recent response and the previous responses
     return {"messages": [response]}
@@ -155,22 +155,26 @@ def answer_once(
     }
     return response
 
-def build_graph(llm, vector_store):
-    # bind llm into the nodes that need it
-    query_node = partial(query_or_respond, llm=llm)
-    generate_node = partial(generate, llm=llm)
-
-    # bind vector_store into the retrieve tool
-    # use a small wrapper so any tool metadata on the decorator is preserved
+def create_bound_retrieve_tool(vector_store):
+    """Create a properly decorated retrieve tool bound to a specific vector store"""
+    @tool(response_format="content_and_artifact")
     def retrieve_bound(query: str):
-        """Run the retrieve function on the vector store"""
-        return retrieve(query, vector_store=vector_store)
-    # copy all the default assigned attributes except __annotations__
-    assigned_without_annotations = tuple(
-        name for name in WRAPPER_ASSIGNMENTS if name != "__annotations__"
-    )
-    # copy metadata (including __dict__) from the original decorated function
-    retrieve_bound = wraps(retrieve, assigned=assigned_without_annotations)(retrieve_bound)
+        """Retrieve information related to a query"""
+        retrieved_docs = vector_store.similarity_search(query, k=5)
+        serialized = "\n\n".join(
+            f"Source: {doc.metadata}\nContent: {doc.page_content}"
+            for doc in retrieved_docs
+        )
+        return serialized, retrieved_docs
+    return retrieve_bound
+
+def build_graph(llm, vector_store):
+    # create a properly decorated tool bound to the vector store
+    retrieve_bound = create_bound_retrieve_tool(vector_store)
+    
+    # bind llm and retrieve_tool into the nodes that need them
+    query_node = partial(query_or_respond, llm=llm, retrieve_tool=retrieve_bound)
+    generate_node = partial(generate, llm=llm)
     tool_node = ToolNode([retrieve_bound])
 
     graph_builder = StateGraph(MessagesState)
@@ -191,58 +195,3 @@ def build_graph(llm, vector_store):
     memory = MemorySaver() # for in-memory state handling
     graph = graph_builder.compile(checkpointer=memory)
     return graph
-
-from src.llm_utils import check_index_naming
-import os
-from dotenv import load_dotenv
-from azure.search.documents.indexes import SearchIndexClient
-from azure.core.credentials import AzureKeyCredential
-from langchain_community.vectorstores.azuresearch import AzureSearch
-from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-
-load_dotenv()
-
-# before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
-if vector_store_name_status:
-    print("Vector store is named correctly")
-else:
-    raise Exception("Vector store naming is not compatible with LangChain")
-
-embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
-    azure_deployment=os.getenv("EMBEDDING_DEPLOYMENT_NAME"),
-    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    azure_endpoint=os.getenv("EMBEDDING_MODEL_ENDPOINT"),
-    api_key=os.getenv("EMBEDDING_MODEL_KEY"),
-)
-print("Embedding model connected")
-
-vector_store: AzureSearch = AzureSearch(
-    azure_search_endpoint=os.getenv("VECTOR_STORE_ENDPOINT"),
-    azure_search_key=os.getenv("VECTOR_STORE_KEY"),
-    index_name=os.getenv("VECTOR_STORE_INDEX"),
-    embedding_function=embeddings.embed_query,
-    content_key="chunk"
-)
-print("Vector store connected")
-
-llm = AzureChatOpenAI(
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
-    azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
-)
-print("LLM connected")
-
-graph = build_graph(llm=llm, vector_store=vector_store)
-
-while True:
-    user_input = input("What do you want to know?\n")
-    response = answer_once(graph, user_input)
-    for i in range(len(response['source_contents'])):
-        print(f"###### Chunk {i+1} ######")
-        print(response['source_contents'][i])
-    print(response['source_names'])
-    print(response['answer'])
