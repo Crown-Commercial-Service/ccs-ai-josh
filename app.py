@@ -45,7 +45,9 @@ llm = AzureChatOpenAI(
     temperature=0.0
 )
 
-graph = build_graph(llm=llm, vector_store=vector_store)
+# Initialize graph in session state to preserve conversation context
+if "graph" not in st.session_state:
+    st.session_state.graph = build_graph(llm=llm, vector_store=vector_store)
 
 CI_docs_URLs = pd.read_csv("data/CI_document_URLs.csv")
 
@@ -61,7 +63,7 @@ if user_input := st.chat_input("How can I help?"):
     with st.chat_message("user"):
         st.markdown(user_input)
     
-    response = answer_once(graph, user_input)
+    response = answer_once(st.session_state.graph, user_input)
     # if retrieval took place for that question, display the answer with source documents underneath
     if len(response['source_names'])>0:
         # only displaying link to document that holds most relevant chunk
