@@ -6,7 +6,8 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from src.llm_utils import check_index_naming, generate_response
+from src.llm_utils import check_index_naming
+from src.multiturn_utils import build_graph, answer_once
 
 st.set_page_config(layout="wide")
 
@@ -44,19 +45,38 @@ llm = AzureChatOpenAI(
     temperature=0.0
 )
 
+# Initialize graph in session state to preserve conversation context
+if "graph" not in st.session_state:
+    st.session_state.graph = build_graph(llm=llm, vector_store=vector_store)
+
 CI_docs_URLs = pd.read_csv("data/CI_document_URLs.csv")
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
 if user_input := st.chat_input("How can I help?"):
-    # Display user message in chat message container
+    st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
-    response = generate_response(question=user_input, vector_store=vector_store, llm=llm)
-    # only displaying link to document that holds most relevant chunk
-    relevant_doc = response['source_names'][0]
-    # convert file name to links to docs
-    doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==relevant_doc].iloc[0,:]['File URL']
-    doc_link = f"\n\n[{relevant_doc}]({doc_URL})"
-    output = response["answer"] + doc_link
+    
+    response = answer_once(st.session_state.graph, user_input)
+    # if retrieval took place for that question, display the answer with source documents underneath
+    if len(response['source_names'])>0:
+        # only displaying link to document that holds most relevant chunk
+        relevant_doc = response['source_names'][0]
+        # convert file name to links to docs
+        doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==relevant_doc].iloc[0,:]['File URL']
+        doc_link = f"\n\n[{relevant_doc}]({doc_URL})"
+        output = response["answer"] + doc_link
+    # if retrieval did not take place, only display the answer
+    else:
+        output = response["answer"]
+    
+    st.session_state.messages.append({"role": "assistant", "content": output})
     with st.chat_message("assistant"):
         st.markdown(output)
 
