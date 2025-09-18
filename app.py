@@ -66,12 +66,21 @@ if user_input := st.chat_input("How can I help?"):
     response = answer_once(st.session_state.graph, user_input)
     # if retrieval took place for that question, display the answer with source documents underneath
     if len(response['source_names'])>0:
-        # only displaying link to document that holds most relevant chunk
-        relevant_doc = response['source_names'][0]
-        # convert file name to links to docs
-        doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==relevant_doc].iloc[0,:]['File URL']
-        doc_link = f"\n\n[{relevant_doc}]({doc_URL})"
-        output = response["answer"] + doc_link
+        # format all source documents with appropriate labels
+        source_links = []
+        unique_sources = list(dict.fromkeys(response['source_names']))  # remove duplicates while preserving order
+
+        for i, source_name in enumerate(unique_sources):
+            # convert file name to links to docs
+            doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==source_name].iloc[0,:]['File URL']
+            source_links.append(f"[{source_name}]({doc_URL})")
+
+        # create formatted source block
+        doc_block = f"\n\n**Most Relevant Document:**\n- {source_links[0]}"
+        if len(source_links) > 1:
+            doc_block += f"\n\n**Other Relevant Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
+
+        output = response["answer"] + doc_block
     # if retrieval did not take place, only display the answer
     else:
         output = response["answer"]
