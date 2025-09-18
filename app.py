@@ -85,7 +85,7 @@ if user_input := st.chat_input("How can I help?"):
         if len(response['source_names']) > 0:
             sources_content = format_sources(response['source_names'], CI_docs_URLs)
             if sources_content:
-                with st.expander("📚 View Sources", expanded=False):
+                with st.expander("🔗 View Sources", expanded=False):
                     st.markdown(sources_content)
 
 # Add fixed disclaimer at the bottom
