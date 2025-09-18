@@ -7,7 +7,7 @@ from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.llm_utils import check_index_naming
-from src.multiturn_utils import build_graph, answer_once
+from src.multiturn_utils import build_graph, answer_once, format_sources
 
 st.set_page_config(layout="wide")
 
@@ -57,6 +57,12 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        # Add sources expander for assistant messages that have sources
+        if message["role"] == "assistant" and message.get("sources"):
+            sources_content = format_sources(message["sources"], CI_docs_URLs)
+            if sources_content:
+                with st.expander("📚 View Sources", expanded=False):
+                    st.markdown(sources_content)
 
 if user_input := st.chat_input("How can I help?"):
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -64,30 +70,23 @@ if user_input := st.chat_input("How can I help?"):
         st.markdown(user_input)
     
     response = answer_once(st.session_state.graph, user_input)
-    # if retrieval took place for that question, display the answer with source documents underneath
-    if len(response['source_names'])>0:
-        # format all source documents with appropriate labels
-        source_links = []
-        unique_sources = list(dict.fromkeys(response['source_names']))  # remove duplicates while preserving order
+    output = response["answer"]
 
-        for i, source_name in enumerate(unique_sources):
-            # convert file name to links to docs
-            doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==source_name].iloc[0,:]['File URL']
-            source_links.append(f"[{source_name}]({doc_URL})")
+    # Store message with sources if retrieval occurred
+    message_data = {"role": "assistant", "content": output}
+    if len(response['source_names']) > 0:
+        message_data["sources"] = response['source_names']
 
-        # create formatted source block
-        doc_block = f"\n\n**Most Relevant Document:**\n- {source_links[0]}"
-        if len(source_links) > 1:
-            doc_block += f"\n\n**Other Relevant Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
+    st.session_state.messages.append(message_data)
 
-        output = response["answer"] + doc_block
-    # if retrieval did not take place, only display the answer
-    else:
-        output = response["answer"]
-    
-    st.session_state.messages.append({"role": "assistant", "content": output})
     with st.chat_message("assistant"):
         st.markdown(output)
+        # Add sources in an expander if retrieval occurred
+        if len(response['source_names']) > 0:
+            sources_content = format_sources(response['source_names'], CI_docs_URLs)
+            if sources_content:
+                with st.expander("📚 View Sources", expanded=False):
+                    st.markdown(sources_content)
 
 # Add fixed disclaimer at the bottom
 st.markdown(
