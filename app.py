@@ -9,7 +9,7 @@ from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.llm_utils import check_index_naming
 from src.multiturn_utils import build_graph, answer_once, format_sources
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="AI Josh")
 
 st.title("AI Josh")
 st.write("An AI system to answer questions about Commercial Intelligence documents.")
