@@ -92,17 +92,26 @@ if user_input := st.chat_input("How can I help?"):
 st.markdown(
     """
     <style>
-    .fixed-disclaimer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        colour: #333;
-        text-align: centre;
-        padding: 10px 0;
-        font-size: 0.9rem;
-        z-index: 9999;
-    }
+        .fixed-disclaimer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            colour: #333;
+            text-align: centre;
+            padding: 10px 0;
+            font-size: 0.9rem;
+            z-index: 9999;
+        }
+        .reportview-container {
+            margin-top: -2em;
+        }
+        #MainMenu {visibility: hidden;}
+        .stDeployButton {display:none !important;}
+        .stAppDeployButton {display:none !important;}
+        [data-testid="stToolbar"] {display:none !important;}
+        footer {visibility: hidden;}
+        #stDecoration {display:none;}
     </style>
     <div class="fixed-disclaimer">
          Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
