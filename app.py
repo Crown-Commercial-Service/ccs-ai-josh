@@ -7,9 +7,9 @@ from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.llm_utils import check_index_naming
-from src.multiturn_utils import build_graph, answer_once
+from src.multiturn_utils import build_graph, answer_once, format_sources
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="AI Josh")
 
 st.title("AI Josh")
 st.write("An AI system to answer questions about Commercial Intelligence documents.")
@@ -57,6 +57,12 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        # Add sources expander for assistant messages that have sources
+        if message["role"] == "assistant" and message.get("sources"):
+            sources_content = format_sources(message["sources"], CI_docs_URLs)
+            if sources_content:
+                with st.expander("🔗 View Sources", expanded=False):
+                    st.markdown(sources_content)
 
 if user_input := st.chat_input("How can I help?"):
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -64,37 +70,48 @@ if user_input := st.chat_input("How can I help?"):
         st.markdown(user_input)
     
     response = answer_once(st.session_state.graph, user_input)
-    # if retrieval took place for that question, display the answer with source documents underneath
-    if len(response['source_names'])>0:
-        # only displaying link to document that holds most relevant chunk
-        relevant_doc = response['source_names'][0]
-        # convert file name to links to docs
-        doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==relevant_doc].iloc[0,:]['File URL']
-        doc_link = f"\n\n[{relevant_doc}]({doc_URL})"
-        output = response["answer"] + doc_link
-    # if retrieval did not take place, only display the answer
-    else:
-        output = response["answer"]
-    
-    st.session_state.messages.append({"role": "assistant", "content": output})
+    output = response["answer"]
+
+    # Store message with sources if retrieval occurred
+    message_data = {"role": "assistant", "content": output}
+    if len(response['source_names']) > 0:
+        message_data["sources"] = response['source_names']
+
+    st.session_state.messages.append(message_data)
+
     with st.chat_message("assistant"):
         st.markdown(output)
+        # Add sources in an expander if retrieval occurred
+        if len(response['source_names']) > 0:
+            sources_content = format_sources(response['source_names'], CI_docs_URLs)
+            if sources_content:
+                with st.expander("🔗 View Sources", expanded=False):
+                    st.markdown(sources_content)
 
 # Add fixed disclaimer at the bottom
 st.markdown(
     """
     <style>
-    .fixed-disclaimer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        colour: #333;
-        text-align: centre;
-        padding: 10px 0;
-        font-size: 0.9rem;
-        z-index: 9999;
-    }
+        .fixed-disclaimer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            colour: #333;
+            text-align: centre;
+            padding: 10px 0;
+            font-size: 0.9rem;
+            z-index: 9999;
+        }
+        .reportview-container {
+            margin-top: -2em;
+        }
+        #MainMenu {visibility: hidden;}
+        .stDeployButton {display:none !important;}
+        .stAppDeployButton {display:none !important;}
+        [data-testid="stToolbar"] {display:none !important;}
+        footer {visibility: hidden;}
+        #stDecoration {display:none;}
     </style>
     <div class="fixed-disclaimer">
          Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
