@@ -132,21 +132,28 @@ def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:lis
         generated_answer=answer,
         reference_answer=ref_answer
     )
-    retrieval_score = score_retrieval(
-        llm=llm,
-        question=question,
-        context=context
-    )
-    groundedness_score = score_groundedness(
-        llm=llm,
-        context=context,
-        generated_answer=answer
-    )
-    document_match = test_doc_match(
-        # here we assume that retrieved docs are ordered by most to least relevant
-        retrieved_doc=retrieved_docs[0],
-        ref_doc=ref_doc
-    )
+    # for cases where retrieval was triggered
+    if len(retrieved_docs) > 0:
+        retrieval_score = score_retrieval(
+            llm=llm,
+            question=question,
+            context=context
+        )
+        groundedness_score = score_groundedness(
+            llm=llm,
+            context=context,
+            generated_answer=answer
+        )
+        document_match = test_doc_match(
+            # here we assume that retrieved docs are ordered by most to least relevant
+            retrieved_doc=retrieved_docs[0],
+            ref_doc=ref_doc
+        )
+    # for cases where retrieval was not triggered
+    else:
+        retrieval_score = 0
+        groundedness_score = 0
+        document_match = False
     results = {
         "correctness": correctness_score,
         "retrieval": retrieval_score,
