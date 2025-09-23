@@ -143,10 +143,7 @@ def answer_once(
                         # retrieval did occur, so return the doc names and contents
                         source_names.append(doc.metadata['title'])
                         source_contents.append(doc.metadata['chunk'])
-                    else:
-                        # retrieval didn't occur, so don't return any citations
-                        source_names = []
-                        source_contents = []
+                    # Skip non-Document objects without clearing existing sources
         else:
             # this isn't a tool message, so keep looking
             pass
@@ -185,3 +182,24 @@ def build_graph(llm, vector_store):
     memory = MemorySaver() # for in-memory state handling
     graph = graph_builder.compile(checkpointer=memory)
     return graph
+
+def format_sources(source_names, CI_docs_URLs):
+    """Format source documents into links and create expander content"""
+    if not source_names:
+        return None
+
+    # Remove duplicates while preserving order
+    unique_sources = list(dict.fromkeys(source_names))
+    source_links = []
+
+    for source_name in unique_sources:
+        # Convert file name to links to docs
+        doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==source_name].iloc[0,:]['File URL']
+        source_links.append(f"[{source_name}]({doc_URL})")
+
+    # Create formatted source block for expander
+    sources_content = f"**Most Relevant Document:**\n- {source_links[0]}"
+    if len(source_links) > 1:
+        sources_content += f"\n\n**Other Related Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
+
+    return sources_content
