@@ -6,7 +6,8 @@ from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
-from src.llm_utils import check_index_naming, generate_response
+from src.llm_utils import check_index_naming
+from src.multiturn_utils import build_graph, answer_once
 from src.eval_utils import evaluate_response
 
 load_dotenv()
@@ -49,10 +50,12 @@ truthset_sheet_name = 'Questions'
 truthset = pd.read_excel(truthset_file_path, sheet_name=truthset_sheet_name)
 # drop any blank columns that were inserted by parsing the spreadsheet
 truthset = truthset.dropna(axis=1, how='all').reset_index()
+# build the graph
+graph = build_graph(llm=llm, vector_store=vector_store)
 # send each question to the model and store the response in the truthset df
 responses = []
 for i in truthset['Question']:
-    response = generate_response(question=i, vector_store=vector_store, llm=llm)
+    response = answer_once(graph, i)
     responses.append(response)
     if len(responses) % 10 == 0:
         print(f"Responses generated for {len(responses)} questions")
