@@ -61,7 +61,7 @@ for message in st.session_state.messages:
         if message["role"] == "assistant" and message.get("sources"):
             sources_content = format_sources(message["sources"], CI_docs_URLs)
             if sources_content:
-                with st.expander("📚 View Sources", expanded=False):
+                with st.expander("🔗 View Sources", expanded=False):
                     st.markdown(sources_content)
 
 if user_input := st.chat_input("How can I help?"):
