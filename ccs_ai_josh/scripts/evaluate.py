@@ -50,11 +50,11 @@ truthset_sheet_name = 'Questions'
 truthset = pd.read_excel(truthset_file_path, sheet_name=truthset_sheet_name)
 # drop any blank columns that were inserted by parsing the spreadsheet
 truthset = truthset.dropna(axis=1, how='all').reset_index()
-# build the graph
-graph = build_graph(llm=llm, vector_store=vector_store)
 # send each question to the model and store the response in the truthset df
 responses = []
 for i in truthset['Question']:
+    # build the graph each time, to clear context
+    graph = build_graph(llm=llm, vector_store=vector_store)
     response = answer_once(graph, i)
     responses.append(response)
     if len(responses) % 10 == 0:
