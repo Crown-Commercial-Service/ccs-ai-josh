@@ -57,7 +57,10 @@ def get_doc_names(endpoint, group, token):
         "params": json.dumps({
             "apiFunction": "listDocuments",
             "apiToken": token,
-            "apiGroupEmail": group
+            "apiGroupEmail": group,
+            "apiParams": {
+                'maxRows': '1000'
+            }
         })
     }
     try:
@@ -69,7 +72,7 @@ def get_doc_names(endpoint, group, token):
         return None
 
 
-# Example Usage:
+# list docs and write details to file
 if __name__ == "__main__":
     session_response = start_session(
         endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
