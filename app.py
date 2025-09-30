@@ -1,4 +1,8 @@
 import os
+# Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
+# Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv

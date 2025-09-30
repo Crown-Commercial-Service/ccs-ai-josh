@@ -141,8 +141,10 @@ def answer_once(
                     # Check if the artifact is a langchain_core.documents.base.Document object (retrieval did occur), or a dict (retrieval didn't occur)
                     if isinstance(doc, Document):
                         # retrieval did occur, so return the doc names and contents
+                        print("doc.metadata keys:")
+                        print(doc.metadata.keys())
                         source_names.append(doc.metadata['title'])
-                        source_contents.append(doc.metadata['chunk'])
+                        source_contents.append(doc.metadata['content'])
                     # Skip non-Document objects without clearing existing sources
         else:
             # this isn't a tool message, so keep looking
