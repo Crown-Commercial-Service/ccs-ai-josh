@@ -3,6 +3,8 @@ import json
 import os
 import pandas as pd
 from dotenv import load_dotenv
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 
 load_dotenv()
 
@@ -184,22 +186,57 @@ def retrieve_kahootz_file_info(endpoint:str, user_email:str, password:str, group
         }
     return kahootz_file_info
 
+def list_blob_files(blob_url, container_name):
+    """
+    List the files in a blob storage container
+
+    Args:
+        blob_url: the URL of the blob storage
+        container_name: the name of the container holding the files
+    
+    Returns:
+        file_names: the names of the files in the container
+    """
+    # 1. Authenticate using DefaultAzureCredential
+    # This automatically checks environment variables, Azure CLI, managed identity, etc.
+    credential = DefaultAzureCredential()
+
+    # 2. Create the BlobServiceClient
+    blob_service_client = BlobServiceClient(blob_url, credential=credential)
+
+    # 3. Get the container client
+    container_client = blob_service_client.get_container_client(container_name)
+
+    # 4. List the contents
+    print(f"Listing blobs in container: {container_name}")
+    for blob in container_client.list_blobs():
+        print(blob.name)
+
 # list docs and write details to file
 if __name__ == "__main__":
-    kahootz_file_info = retrieve_kahootz_file_info(
-        endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
-        user_email=os.getenv("KAHOOTZ_EMAIL"),
-        password=os.getenv("KAHOOTZ_KEY"),
-        group=os.getenv("KAHOOTZ_GROUP")
-    )
-    doc_df = kahootz_file_info['doc_df']
-    kahootz_site = kahootz_file_info['kahootz_site']
-    kahootz_token = kahootz_file_info['kahootz_token']
+    # # 1. Get Kahootz file info
+    # kahootz_file_info = retrieve_kahootz_file_info(
+    #     endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
+    #     user_email=os.getenv("KAHOOTZ_EMAIL"),
+    #     password=os.getenv("KAHOOTZ_KEY"),
+    #     group=os.getenv("KAHOOTZ_GROUP")
+    # )
+    # doc_df = kahootz_file_info['doc_df']
+    # kahootz_site = kahootz_file_info['kahootz_site']
+    # kahootz_token = kahootz_file_info['kahootz_token']
 
-    for i in range(len(doc_df)):
-        download_file(
-            url=doc_df.iloc[i,:]['URL'],
-            site=kahootz_site,
-            token=kahootz_token,
-            name=doc_df.iloc[i,:]['Name']
-        )
+    # 2. Get blob storage file info
+    list_blob_files(
+        blob_url=os.getenv("BLOB_URL"),
+        container_name=os.getenv("BLOB_CONTAINER")
+    )
+    # # 3. Download files that are on Kahootz but not blob storage
+    # for i in range(len(doc_df)):
+    #     download_file(
+    #         url=doc_df.iloc[i,:]['URL'],
+    #         site=kahootz_site,
+    #         token=kahootz_token,
+    #         name=doc_df.iloc[i,:]['Name']
+    #     )
+
+    # 4. Delete files that are on blob storage but not Kahootz
