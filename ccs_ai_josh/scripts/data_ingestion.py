@@ -87,7 +87,7 @@ def doc_list_to_df(doc_data:dict) -> pd.DataFrame:
     for i in doc_data['querydata']['data']:
         # create a dict so that values for each entry can be extracted using the accompanying naming schema
         # this *should* future-proof against naming/ordering changes
-        entry_dict = dict(zip(doc_list['querydata']['columns'], i))
+        entry_dict = dict(zip(doc_data['querydata']['columns'], i))
         doc_names.append(entry_dict['name'])
         doc_urls.append(entry_dict['getfileurl'])
         doc_mod_dates.append(entry_dict['modifydate'])
@@ -98,11 +98,12 @@ def doc_list_to_df(doc_data:dict) -> pd.DataFrame:
     })
     return doc_df
 
-def download_file(url:str, site:str, token:str) -> None:
+def download_file(name:str, url:str, site:str, token:str) -> None:
     """
-    Downloads a document.
+    Downloads a document to local storage.
 
     Args:
+        name: the name of the file once it is downloaded
         url: the url pointing at the file to download
         group: The user's site index.
         token: The user's token for this session (retrieved with start_session()).
@@ -110,7 +111,7 @@ def download_file(url:str, site:str, token:str) -> None:
     Returns:
         None
     """
-    local_filename = 'downloaded_file.pdf'
+    local_filename = name + '.' + url.split('/')[-1].split('.')[-1]
     # 1. Define the custom headers dictionary
     headers = {
         'APIToken': token
@@ -135,12 +136,20 @@ def download_file(url:str, site:str, token:str) -> None:
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-# list docs and write details to file
-if __name__ == "__main__":
+def retrieve_kahootz_file_info(endpoint:str, user_email:str, password:str, group:str) -> pd.DataFrame:
+    """
+    Retrieves information on the files present in Kahootz.
+    
+    Args:
+        endpoint (str): The user's endpoint URL
+        user_email (str): The user's email address.
+        password (str): The user's password.
+        group: The user's group name.
+    """
     session_response = start_session(
-        endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
-        user_email=os.getenv("KAHOOTZ_EMAIL"),
-        password=os.getenv("KAHOOTZ_KEY")
+        endpoint=endpoint,
+        user_email=user_email,
+        password=password
     )
     print(session_response)
     if session_response:
@@ -150,13 +159,13 @@ if __name__ == "__main__":
             kahootz_token = session_response.get("tokenid")
             print(f"Session token retrieved")
         else:
-            print(f"API returned status: {session_response.get('status')} - {session_response.get('status text')}")
+            raise Exception(f"API returned status: {session_response.get('status')} - {session_response.get('status text')}")
     else:
-        print("Failed to start session.")
+        raise Exception("Failed to start session.")
     
     doc_list = list_docs(
-        endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
-        group=os.getenv("KAHOOTZ_GROUP"), 
+        endpoint=endpoint,
+        group=group, 
         token=kahootz_token
     )
     if doc_list:
@@ -164,17 +173,33 @@ if __name__ == "__main__":
             print(f"Document list retrieved")
             doc_df = doc_list_to_df(doc_list)
             print(f"Details retrieved for {len(doc_df)} documents")
-            print("First 5 documents:")
-            print(doc_df.head())
         else:
-            print(f"API returned status: {doc_list.get('status')} - {doc_list.get('status text')}")
+            raise Exception(f"API returned status: {doc_list.get('status')} - {doc_list.get('status text')}")
     else:
-        print("Failed to connect to session.")
+        raise Exception("Failed to connect to session.")
+    kahootz_file_info = {
+        'kahootz_site':kahootz_site,
+        'kahootz_token': kahootz_token,
+        'doc_df': doc_df
+        }
+    return kahootz_file_info
 
-    for i in len(doc_df):
+# list docs and write details to file
+if __name__ == "__main__":
+    kahootz_file_info = retrieve_kahootz_file_info(
+        endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
+        user_email=os.getenv("KAHOOTZ_EMAIL"),
+        password=os.getenv("KAHOOTZ_KEY"),
+        group=os.getenv("KAHOOTZ_GROUP")
+    )
+    doc_df = kahootz_file_info['doc_df']
+    kahootz_site = kahootz_file_info['kahootz_site']
+    kahootz_token = kahootz_file_info['kahootz_token']
+
+    for i in range(len(doc_df)):
         download_file(
-            url=doc_df.iloc[:,i]['URL'],
+            url=doc_df.iloc[i,:]['URL'],
             site=kahootz_site,
             token=kahootz_token,
-            name=doc_df.iloc[:,i]['Name']
+            name=doc_df.iloc[i,:]['Name']
         )
