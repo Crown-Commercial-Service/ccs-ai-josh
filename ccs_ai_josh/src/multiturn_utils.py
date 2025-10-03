@@ -194,8 +194,14 @@ def format_sources(source_names, CI_docs_URLs):
 
     for source_name in unique_sources:
         # Convert file name to links to docs
-        doc_URL = CI_docs_URLs[CI_docs_URLs['File Name']==source_name].iloc[0,:]['File URL']
-        source_links.append(f"[{source_name}]({doc_URL})")
+        doc_row = CI_docs_URLs[CI_docs_URLs['File Name']==source_name]
+        # if the file is in the CI Docs URLs table, add a hyperlink
+        if doc_row.shape[0] > 0:
+            doc_URL = doc_row.iloc[0,:]['File URL']
+            source_links.append(f"[{source_name}]({doc_URL})")
+        # if the file is missing from the CI Docs URLs table, just add a name
+        else:
+            source_links.append(source_name)
 
     # Create formatted source block for expander
     sources_content = f"**Most Relevant Document:**\n- {source_links[0]}"
