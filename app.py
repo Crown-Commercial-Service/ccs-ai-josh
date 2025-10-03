@@ -10,7 +10,6 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from src.llm_utils import check_index_naming
 from src.multiturn_utils import build_graph, answer_once, format_sources
 
 st.set_page_config(layout="wide", page_title="AI Josh")
@@ -19,12 +18,6 @@ st.title("AI Josh")
 st.write("An AI system to answer questions about Commercial Intelligence documents.")
 
 load_dotenv()
-
-# before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
-if vector_store_name_status == False:
-    raise Exception("Vector store naming is not compatible with LangChain")
 
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
     azure_deployment=os.getenv("EMBEDDING_DEPLOYMENT_NAME"),

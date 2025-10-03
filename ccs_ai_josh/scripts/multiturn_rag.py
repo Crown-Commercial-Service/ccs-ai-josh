@@ -13,14 +13,6 @@ from src.multiturn_utils import build_graph, answer_once
 
 load_dotenv()
 
-# before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
-if vector_store_name_status:
-    print("Vector store is named correctly")
-else:
-    raise Exception("Vector store naming is not compatible with LangChain")
-
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
     azure_deployment=os.getenv("EMBEDDING_DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
