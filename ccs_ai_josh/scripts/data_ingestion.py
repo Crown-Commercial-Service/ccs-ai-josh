@@ -1,10 +1,12 @@
 import requests
 import json
 import os
+import re
 import pandas as pd
 from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
+from pathlib import Path
 
 load_dotenv()
 
@@ -98,9 +100,11 @@ def doc_list_to_df(doc_data:dict) -> pd.DataFrame:
         'URL': doc_urls,
         'Modification Date': doc_mod_dates
     })
-    return doc_df
+    # remove Market Strategy documents, as these are not needed in AI Josh
+    mask = ~doc_df['Name'].str.contains("Market Strategy", na=False)
+    return doc_df[mask]
 
-def download_file(name:str, url:str, site:str, token:str) -> None:
+def download_file(url:str, site:str, token:str, local_filepath:str) -> None:
     """
     Downloads a document to local storage.
 
@@ -109,11 +113,11 @@ def download_file(name:str, url:str, site:str, token:str) -> None:
         url: the url pointing at the file to download
         group: The user's site index.
         token: The user's token for this session (retrieved with start_session()).
+        local_filepath: The path on disk to write the file to
 
     Returns:
         None
     """
-    local_filename = name + '.' + url.split('/')[-1].split('.')[-1]
     # 1. Define the custom headers dictionary
     headers = {
         'APIToken': token
@@ -125,13 +129,10 @@ def download_file(name:str, url:str, site:str, token:str) -> None:
             r.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
 
             # 3. Save the file content
-            print(f"Downloading {url} to {local_filename}")
-            with open(local_filename, 'wb') as f:
+            with open(local_filepath, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-
-        print(f"Successfully downloaded {local_filename}")
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during download (check URL, token, and permissions): {e}")
@@ -214,29 +215,39 @@ def list_blob_files(blob_url, container_name):
 
 # list docs and write details to file
 if __name__ == "__main__":
-    # # 1. Get Kahootz file info
-    # kahootz_file_info = retrieve_kahootz_file_info(
-    #     endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
-    #     user_email=os.getenv("KAHOOTZ_EMAIL"),
-    #     password=os.getenv("KAHOOTZ_KEY"),
-    #     group=os.getenv("KAHOOTZ_GROUP")
-    # )
-    # doc_df = kahootz_file_info['doc_df']
-    # kahootz_site = kahootz_file_info['kahootz_site']
-    # kahootz_token = kahootz_file_info['kahootz_token']
-
-    # 2. Get blob storage file info
-    list_blob_files(
-        blob_url=os.getenv("BLOB_URL"),
-        container_name=os.getenv("BLOB_CONTAINER")
+    # 1. Get Kahootz file info
+    kahootz_file_info = retrieve_kahootz_file_info(
+        endpoint=os.getenv("KAHOOTZ_ENDPOINT"),
+        user_email=os.getenv("KAHOOTZ_EMAIL"),
+        password=os.getenv("KAHOOTZ_KEY"),
+        group=os.getenv("KAHOOTZ_GROUP")
     )
-    # # 3. Download files that are on Kahootz but not blob storage
-    # for i in range(len(doc_df)):
-    #     download_file(
-    #         url=doc_df.iloc[i,:]['URL'],
-    #         site=kahootz_site,
-    #         token=kahootz_token,
-    #         name=doc_df.iloc[i,:]['Name']
-    #     )
+    doc_df = kahootz_file_info['doc_df']
+    kahootz_site = kahootz_file_info['kahootz_site']
+    kahootz_token = kahootz_file_info['kahootz_token']
 
-    # 4. Delete files that are on blob storage but not Kahootz
+    # # 2. Get blob storage file info
+    # # Note: this is currently blocked by misconfigured Azure permissions
+    # list_blob_files(
+    #     blob_url=os.getenv("BLOB_URL"),
+    #     container_name=os.getenv("BLOB_CONTAINER")
+    # )
+
+    # 3. Identify files that are on Kahootz but not blob storage
+
+    # 4. Download files that are on Kahootz but not blob storage
+    # Note: while waiting for Azure permissions fix, we download all files
+    for i in range(len(doc_df)):
+        filetype = doc_df.iloc[i,:]['URL'].split('/')[-1].split('.')[-1]
+        # remove any slashes in name to avoid disk write errors
+        local_filename = re.sub('/', '', doc_df.iloc[i,:]['Name']) + '.' + filetype
+        download_file(
+            url=doc_df.iloc[i,:]['URL'],
+            site=kahootz_site,
+            token=kahootz_token,
+            local_filepath=Path('raw_docs', local_filename)
+        )
+        if (i+1) % 10 == 0:
+            print(f"Downloaded {i+1} documents")
+
+    # 5. Delete files that are on blob storage but not Kahootz
