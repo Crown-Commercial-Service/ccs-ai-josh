@@ -217,6 +217,27 @@ def list_blob_files(blob_url, container_name):
     for blob in container_client.list_blobs():
         print(blob.name)
 
+def list_local_files(filepath: str) -> list:
+    """
+    Lists the filenames in a given directory on disk.
+
+    Args:
+        filepath: The path to the directory.
+
+    Returns:
+        A list of filenames and directory names, or an empty list if
+        the path is invalid.
+    """
+    try:
+        filenames = os.listdir(filepath)
+        return filenames
+    except FileNotFoundError:
+        print(f"Error: The path '{filepath}' does not exist.")
+        return []
+    except NotADirectoryError:
+        print(f"Error: The path '{filepath}' is not a directory.")
+        return []
+
 # list docs and write details to file
 if __name__ == "__main__":
     # 1. Get Kahootz file info
@@ -230,28 +251,37 @@ if __name__ == "__main__":
     kahootz_site = kahootz_file_info['kahootz_site']
     kahootz_token = kahootz_file_info['kahootz_token']
 
-    # # 2. Get blob storage file info
-    # # Note: this is currently blocked by misconfigured Azure permissions
-    # list_blob_files(
-    #     blob_url=os.getenv("BLOB_URL"),
-    #     container_name=os.getenv("BLOB_CONTAINER")
-    # )
+    # 2. Get local storage file info
+    # Note: change this to blob when possible
+    local_files = list_local_files(filepath='./raw_docs')
 
     # 3. Identify files that are on Kahootz but not blob storage
+    new_files = []
+    for i in doc_df['Name']:
+        if i+'.pdf' not in local_files:
+            new_files.append(i)
+    new_files.sort()
+    print("The following files will be downloaded:")
+    for i in new_files:
+        print(i)
+    user_confirmation = input("Do you want to download them? [yes/no]: ").lower()
+    if user_confirmation == "yes":
+        doc_to_download_df = doc_df[doc_df['Name'].isin(new_files)]
 
     # 4. Download files that are on Kahootz but not blob storage
     # Note: while waiting for Azure permissions fix, we download all files
-    for i in range(len(doc_df)):
-        filetype = doc_df.iloc[i,:]['URL'].split('/')[-1].split('.')[-1]
-        # remove any slashes in name to avoid disk write errors
-        local_filename = re.sub('/', '', doc_df.iloc[i,:]['Name']) + '.' + filetype
-        download_file(
-            url=doc_df.iloc[i,:]['URL'],
-            site=kahootz_site,
-            token=kahootz_token,
-            local_filepath=Path('raw_docs', local_filename)
-        )
-        if (i+1) % 10 == 0:
-            print(f"Downloaded {i+1} documents")
+        for i in range(len(doc_to_download_df)):
+            filetype = doc_to_download_df.iloc[i,:]['URL'].split('/')[-1].split('.')[-1]
+            # remove any slashes in name to avoid disk write errors
+            local_filename = re.sub('/', '', doc_to_download_df.iloc[i,:]['Name']) + '.' + filetype
+            download_file(
+                url=doc_to_download_df.iloc[i,:]['URL'],
+                site=kahootz_site,
+                token=kahootz_token,
+                local_filepath=Path('raw_docs', local_filename)
+            )
+            if (i+1) % 10 == 0:
+                print(f"Downloaded {i+1} documents")
+        print("File download complete")
 
     # 5. Delete files that are on blob storage but not Kahootz
