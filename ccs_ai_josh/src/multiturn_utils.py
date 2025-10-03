@@ -142,7 +142,7 @@ def answer_once(
                     if isinstance(doc, Document):
                         # retrieval did occur, so return the doc names and contents
                         source_names.append(doc.metadata['title'])
-                        source_contents.append(doc.metadata['content'])
+                        source_contents.append(doc.page_content)
                     # Skip non-Document objects without clearing existing sources
         else:
             # this isn't a tool message, so keep looking
