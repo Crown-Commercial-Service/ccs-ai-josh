@@ -100,8 +100,12 @@ def doc_list_to_df(doc_data:dict) -> pd.DataFrame:
         'URL': doc_urls,
         'Modification Date': doc_mod_dates
     })
-    # remove Market Strategy documents, as these are not needed in AI Josh
-    mask = ~doc_df['Name'].str.contains("Market Strategy", na=False)
+    # remove documents that are not needed in AI Josh
+    mask = ~(
+        (doc_df['Name'].str.startswith('CCS')) |
+        (doc_df['Name'].str.contains("Market Strategy", na=False)) |
+        (doc_df['Name'].str.contains("Market Summary", na=False))
+        )
     return doc_df[mask]
 
 def download_file(url:str, site:str, token:str, local_filepath:str) -> None:
