@@ -10,7 +10,7 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.identity import DefaultAzureCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from ccs_ai_josh.src.multiturn_utils import build_graph, answer_once, format_sources
+from src.multiturn_utils import build_graph, answer_once, format_sources
 from azure.storage.blob import BlobServiceClient
 import io # Import the io module
 
