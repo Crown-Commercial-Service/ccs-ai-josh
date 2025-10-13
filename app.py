@@ -1,13 +1,18 @@
 import os
+# Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
+# Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv
 from azure.search.documents.indexes import SearchIndexClient
-from azure.core.credentials import AzureKeyCredential
+from azure.identity import DefaultAzureCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from src.llm_utils import check_index_naming
 from src.multiturn_utils import build_graph, answer_once, format_sources
+from azure.storage.blob import BlobServiceClient
+import io # Import the io module
 
 st.set_page_config(layout="wide", page_title="AI Josh")
 
@@ -15,12 +20,6 @@ st.title("AI Josh")
 st.write("An AI system to answer questions about Commercial Intelligence documents.")
 
 load_dotenv()
-
-# before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
-if vector_store_name_status == False:
-    raise Exception("Vector store naming is not compatible with LangChain")
 
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
     azure_deployment=os.getenv("EMBEDDING_DEPLOYMENT_NAME"),
@@ -49,7 +48,15 @@ llm = AzureChatOpenAI(
 if "graph" not in st.session_state:
     st.session_state.graph = build_graph(llm=llm, vector_store=vector_store)
 
-CI_docs_URLs = pd.read_csv("data/CI_document_URLs.csv")
+# Read CI_document_URLs.csv from Azure Blob Storage
+credential = DefaultAzureCredential()
+blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_URL'), credential=credential)
+container_client = blob_service_client.get_container_client(os.getenv("BLOB_CONFIG_CONTAINER"))
+blob_client = container_client.get_blob_client("CI_document_URLs.csv")
+
+# Download the blob content and read it into a pandas DataFrame
+blob_data = blob_client.download_blob()
+CI_docs_URLs = pd.read_csv(io.BytesIO(blob_data.readall()))
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -68,7 +75,7 @@ if user_input := st.chat_input("How can I help?"):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
-    
+
     response = answer_once(st.session_state.graph, user_input)
     output = response["answer"]
 
