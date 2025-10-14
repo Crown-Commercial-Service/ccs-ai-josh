@@ -1,43 +1,92 @@
-import streamlit as st
-import datetime
+from flask import Flask, render_template_string
 
-# --- Configuration ---
-st.set_page_config(
-    page_title="Azure Streamlit Test",
-    layout="centered"
-)
+# Initialize the Flask application
+app = Flask(__name__)
 
-# --- App Content ---
-st.title("✅ Azure Streamlit Deployment Test")
+# --- HTML Template Content ---
+# This string contains the full HTML structure, including the Tailwind CDN
+# and the custom CSS needed to replicate the fixed disclaimer bar.
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Fixed Disclaimer UI</title>
+    <!-- Load Tailwind CSS for modern styling and responsiveness -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS to implement the fixed disclaimer bar */
+        .fixed-disclaimer {
+            position: fixed; /* Locks the bar relative to the viewport */
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            padding: 1rem 0; /* Padding for height */
+            font-size: 0.9rem;
+            z-index: 9999; /* Ensure it stays above all other content */
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); /* Subtle top shadow */
+        }
 
-st.markdown("""
-This simple application confirms that the Azure App Service:
-1. Successfully installed the Streamlit dependency (`requirements.txt`).
-2. Executed the custom startup command (`streamlit run demo_app.py ...`).
-3. Correctly handled the web socket connections necessary for interactivity.
-""")
+        /* Ensure main content doesn't hide behind the fixed bar when scrolling */
+        .main-content {
+            min-height: 150vh; /* Forces scrolling for demonstration */
+            padding-bottom: 80px; /* Add space equal to the disclaimer bar height */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
 
-# --- Interactivity Test 1: Slider ---
-st.header("1. Interactivity Test")
-value = st.slider(
-    "Select a value:",
-    min_value=0,
-    max_value=100,
-    value=50,
-    help="Moving the slider confirms the application state is updating correctly."
-)
+    <!-- Main Content Area -->
+    <div class="main-content container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="text-center py-8">
+            <h1 class="text-5xl font-extrabold text-indigo-800">Flask Application Demo</h1>
+            <p class="mt-2 text-xl text-gray-600">Scroll down to see the fixed disclaimer.</p>
+        </header>
 
-st.info(f"The current selected value is: **{value}**")
+        <section class="space-y-6 text-lg text-gray-700 bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-3xl font-semibold text-indigo-600">About This Layout</h2>
+            <p>
+                We've used the power of **CSS `position: fixed`** to ensure the disclaimer stays glued to the bottom of the screen, even as you navigate through the main content. This is a common pattern for important notices or sticky navigation bars in modern web design.
+            </p>
+            <p>
+                Since the disclaimer has been fixed, we added extra padding to the bottom of this main content section to prevent the last lines of text from being obscured by the fixed bar. This ensures a clean user experience across all screen sizes.
+            </p>
 
-# --- Interactivity Test 2: Button ---
-st.header("2. State & Button Test")
+            <!-- Placeholder content to force scrolling -->
+            <div class="pt-8">
+                <div class="h-64 bg-indigo-50 rounded-lg p-4 flex items-center justify-center text-indigo-700 font-semibold shadow-md">
+                    More Content Placeholder 1
+                </div>
+                <div class="h-64 mt-4 bg-green-50 rounded-lg p-4 flex items-center justify-center text-green-700 font-semibold shadow-md">
+                    More Content Placeholder 2
+                </div>
+                <div class="h-64 mt-4 bg-yellow-50 rounded-lg p-4 flex items-center justify-center text-yellow-700 font-semibold shadow-md">
+                    End of Scrollable Content
+                </div>
+            </div>
+        </section>
 
-if st.button("Click Me to Confirm"):
-    st.success(f"Button clicked at {datetime.datetime.now().strftime('%H:%M:%S')}")
-    st.balloons()
-else:
-    st.write("Awaiting confirmation...")
+    </div>
 
-# --- Environment Check (For advanced debugging) ---
-with st.expander("Deployment Info"):
-    st.write("If you see this page, your Terraform setup for Azure App Service is fundamentally working.")
+    <!-- The fixed disclaimer element (replicated from the Streamlit intent) -->
+    <div class="fixed-disclaimer bg-gray-100 border-t border-gray-200 text-gray-600">
+         Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
+    </div>
+
+</body>
+</html>
+"""
+# --- Flask Routes ---
+
+@app.route('/')
+def index():
+    """Renders the main page with the fixed disclaimer UI."""
+    # Use render_template_string to serve the HTML content directly
+    return render_template_string(HTML_TEMPLATE)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+# Note: The application will run when the environment executes this file.
+# We omit the if __name__ == '__main__': block for canvas execution environments.
