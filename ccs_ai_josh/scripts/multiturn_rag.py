@@ -1,5 +1,9 @@
 from src.llm_utils import check_index_naming
 import os
+# Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
+# Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 from dotenv import load_dotenv
 from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
@@ -8,14 +12,6 @@ from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once
 
 load_dotenv()
-
-# before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
-if vector_store_name_status:
-    print("Vector store is named correctly")
-else:
-    raise Exception("Vector store naming is not compatible with LangChain")
 
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
     azure_deployment=os.getenv("EMBEDDING_DEPLOYMENT_NAME"),
