@@ -1,0 +1,7 @@
+.env
+**__pycache__**
+data/*
+/evaluation_results.csv
+raw_docs/*
+.ipynb_checkpoints/*
+*.DS_Store*raw_docs/*

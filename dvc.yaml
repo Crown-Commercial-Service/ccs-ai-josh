@@ -1,0 +1,13 @@
+stages:
+  evaluate:
+    cmd: poetry run python ccs_ai_josh/scripts/evaluate.py
+    deps:
+    - ccs_ai_josh/scripts/evaluate.py
+    - .env
+    outs:
+    - data/evaluation_results.csv
+  visualize:
+    cmd: poetry run python ccs_ai_josh/scripts/visualize.py
+    deps:
+    - ccs_ai_josh/scripts/visualize.py
+    - data/evaluation_results.csv
