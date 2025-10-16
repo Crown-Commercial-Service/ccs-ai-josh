@@ -34,7 +34,6 @@ When contributing to this codebase, please follow these guidelines:
 ## Building the AI Josh System
 ### Document Embeddings
 AI Josh uses retrieval-augmented generation (RAG) to provide responses based on the content of relevant documents. These contents are stored in a vector store, which can be recreated by using the Azure AI Search Wizard. Broadly, this follows the standard process detailed [here](https://learn.microsoft.com/en-us/azure/search/search-get-started-portal-import-vectors?tabs=sample-data-storage%2Cmodel-aoai%2Cconnect-data-storage#supported-data-sources), but specific details are provided in the internal documentation.
-Note: after creating the vector store, run `ccs_ai_josh/scripts/modify_index.py` to reformat the index to be compatible for use with LangChain.
 
 ### Document URLs
 To link to the documents that an answer is based on, we use a file called `CI_document_URLs.csv`, which is a table of file names and URLs. For full instructions on how to create this table, see the internal documentation.
