@@ -12,7 +12,7 @@ results['Document Match'] = pd.Categorical(
     ordered=True
 )
 # only considering unambiguous questions at the moment
-results = results[results['Unambiguous']=='Yes'].copy().reset_index()
+results = results[results['Unambiguous']=='Yes'].copy().reset_index(drop=True)
 
 #######################
 ## POSITIVE CONTROLS ##
@@ -27,32 +27,39 @@ print(pos_results_by_doc_type)
 pos_results_by_doc_type.to_csv(os.path.join('data', 'pos_results_by_doc_type.csv'), index=True)
 
 # correctness histograms
-plt.subplot(1, 3, 1)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Doc Search'], x='Correctness', stat='percent')
-plt.title('Doc Search')
-plt.subplot(1, 3, 2)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Fact Sheet'], x='Correctness', stat='percent')
-plt.title('Fact Sheet')
-plt.subplot(1, 3, 3)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Market Report'], x='Correctness', stat='percent')
-plt.title('Market Report')
+if not results_pos[results_pos['Document Type']=='Doc Search'].empty:
+    plt.subplot(1, 3, 1)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Doc Search'], x='Correctness', stat='percent')
+    plt.title('Doc Search')
+if not results_pos[results_pos['Document Type']=='Fact Sheet'].empty:
+    plt.subplot(1, 3, 2)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Fact Sheet'], x='Correctness', stat='percent')
+    plt.title('Fact Sheet')
+if not results_pos[results_pos['Document Type']=='Market Report'].empty:
+    plt.subplot(1, 3, 3)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Market Report'], x='Correctness', stat='percent')
+    plt.title('Market Report')
 plt.tight_layout()
 plt.savefig(os.path.join('data', 'pos_correctness_hist_by_doctype.svg'), format='svg')
 plt.close()
 
 # file match histograms
-plt.subplot(1, 3, 1)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Doc Search'], x='Document Match', stat='percent')
-plt.title('Doc Search')
-plt.subplot(1, 3, 2)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Fact Sheet'], x='Document Match', stat='percent')
-plt.title('Fact Sheet')
-plt.subplot(1, 3, 3)
-sns.histplot(data=results_pos[results_pos['Document Type']=='Market Report'], x='Document Match', stat='percent')
-plt.title('Market Report')
+if not results_pos[results_pos['Document Type']=='Doc Search'].empty:
+    plt.subplot(1, 3, 1)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Doc Search'], x='Document Match', stat='percent')
+    plt.title('Doc Search')
+if not results_pos[results_pos['Document Type']=='Fact Sheet'].empty:
+    plt.subplot(1, 3, 2)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Fact Sheet'], x='Document Match', stat='percent')
+    plt.title('Fact Sheet')
+if not results_pos[results_pos['Document Type']=='Market Report'].empty:
+    plt.subplot(1, 3, 3)
+    sns.histplot(data=results_pos[results_pos['Document Type']=='Market Report'], x='Document Match', stat='percent')
+    plt.title('Market Report')
 plt.tight_layout()
 plt.savefig(os.path.join('data', 'pos_docmatch_hist_by_doctype.svg'), format='svg')
 plt.close()
+
 
 #######################
 ## NEGATIVE CONTROLS ##
@@ -67,23 +74,27 @@ print(neg_results_by_doc_type)
 neg_results_by_doc_type.to_csv(os.path.join('data', 'neg_results_by_doc_type.csv'), index=True)
 
 # correctness histograms
-plt.subplot(1, 2, 1)
-sns.histplot(data=results_neg[results_neg['Document Type']=='Fact Sheet'], x='Correctness', stat='percent')
-plt.title('Fact Sheet')
-plt.subplot(1, 2, 2)
-sns.histplot(data=results_neg[results_neg['Document Type']=='Market Report'], x='Correctness', stat='percent')
-plt.title('Market Report')
+if not results_neg[results_neg['Document Type']=='Fact Sheet'].empty:
+    plt.subplot(1, 2, 1)
+    sns.histplot(data=results_neg[results_neg['Document Type']=='Fact Sheet'], x='Correctness', stat='percent')
+    plt.title('Fact Sheet')
+if not results_neg[results_neg['Document Type']=='Market Report'].empty:
+    plt.subplot(1, 2, 2)
+    sns.histplot(data=results_neg[results_neg['Document Type']=='Market Report'], x='Correctness', stat='percent')
+    plt.title('Market Report')
 plt.tight_layout()
 plt.savefig(os.path.join('data', 'neg_correctness_hist_by_doctype.svg'), format='svg')
 plt.close()
 
 # file match histograms
-plt.subplot(1, 2, 1)
-sns.histplot(data=results_neg[results_neg['Document Type']=='Fact Sheet'], x='Document Match', stat='percent')
-plt.title('Fact Sheet')
-plt.subplot(1, 2, 2)
-sns.histplot(data=results_neg[results_neg['Document Type']=='Market Report'], x='Document Match', stat='percent')
-plt.title('Market Report')
+if not results_neg[results_neg['Document Type']=='Fact Sheet'].empty:
+    plt.subplot(1, 2, 1)
+    sns.histplot(data=results_neg[results_neg['Document Type']=='Fact Sheet'], x='Document Match', stat='percent')
+    plt.title('Fact Sheet')
+if not results_neg[results_neg['Document Type']=='Market Report'].empty:
+    plt.subplot(1, 2, 2)
+    sns.histplot(data=results_neg[results_neg['Document Type']=='Market Report'], x='Document Match', stat='percent')
+    plt.title('Market Report')
 plt.tight_layout()
 plt.savefig(os.path.join('data', 'neg_docmatch_hist_by_doctype.svg'), format='svg')
 plt.close()

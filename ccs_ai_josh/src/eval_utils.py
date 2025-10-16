@@ -1,7 +1,16 @@
 import os
+import io
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from langchain_openai import AzureChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from unicodedata import normalize
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
 
 def load_prompt(prompt_name):
     prompt_path = os.path.join('ccs_ai_josh', 'prompts', prompt_name)
