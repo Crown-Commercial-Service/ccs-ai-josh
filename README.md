@@ -12,7 +12,11 @@ An AI-powered assistant to answer questions about the contents of documents.
     ```
     poetry install
     ```
-4. Run the unit tests. If any fail, you may have an issue with your installation.
+4. Install the environment as a jupyter kernel
+    ```
+    poetry run python -m ipykernel install --user --name="ccs-ai-josh"
+    ```
+5. Run the unit tests. If any fail, you may have an issue with your installation.
     ```
     poetry run pytest ccs_ai_josh/tests/
     ```
@@ -49,6 +53,15 @@ If you want to evaluate the performance of the system against the truthset:
     dvc repro
     ```
 Note that the full evaluation pipeline submits a total of 664 queries to an LLM each time it is run, so plan your evaluation experiments carefully.
+
+## Exploring Model Evaluation Results
+The results of model evaluation can be explored in jupyter notebooks. To run the notebooks in this repo, launch a jupyter notebook server by running:
+```
+poetry run jupyter lab
+```
+In the jupyter lab landing page that launches in your browser, open one of the notebooks and select the kernel `ccs-ai-josh`.
+
+**Note:** if your browser doesn't automatically load the jupyter lab landing page, you may need to follow the link that is displayed in the terminal instead.
 
 ## Current Performance
 As of 13/08/2025, AI Josh has the following performance characteristics:

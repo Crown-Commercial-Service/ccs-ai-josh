@@ -1,0 +1,29 @@
+schema: '2.0'
+stages:
+  evaluate:
+    cmd: poetry run python ccs_ai_josh/scripts/evaluate.py
+    deps:
+    - path: .env
+      hash: md5
+      md5: 704420c9bd7af9023ccc9b0d435288db
+      size: 1097
+    - path: ccs_ai_josh/scripts/evaluate.py
+      hash: md5
+      md5: a1edf286bab976572a6f187d12671aae
+      size: 4418
+    outs:
+    - path: data/evaluation_results.csv
+      hash: md5
+      md5: 5662b97f59e5317402c61fc759112697
+      size: 1732126
+  visualize:
+    cmd: poetry run python ccs_ai_josh/scripts/visualize.py
+    deps:
+    - path: ccs_ai_josh/scripts/visualize.py
+      hash: md5
+      md5: f9f303de89c242ee9ae25f7e7f923e25
+      size: 4520
+    - path: data/evaluation_results.csv
+      hash: md5
+      md5: 5662b97f59e5317402c61fc759112697
+      size: 1732126
