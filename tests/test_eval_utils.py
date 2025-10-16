@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI
-from src.eval_utils import evaluate_response
+from eval_utils import evaluate_response
 
 load_dotenv()
 
