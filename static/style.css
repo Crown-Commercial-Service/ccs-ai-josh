@@ -13,9 +13,6 @@ body {
 
 .container {
     width: 100%;
-    /* Remove max-width to allow filling horizontally */
-    /* max-width: 800px; */
-    /* Set height to fill the available space within the body */
     height: 100vh; /* Use 100vh to fill viewport height */
     display: flex;
     flex-direction: column;
