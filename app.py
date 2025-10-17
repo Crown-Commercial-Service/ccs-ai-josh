@@ -6,6 +6,7 @@ import io
 import uuid
 import pandas as pd
 from flask import Flask, render_template, request, session, redirect, url_for
+from markdown_it import MarkdownIt
 from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
@@ -67,6 +68,9 @@ except Exception as e:
     print(f"Error loading CSV from Blob Storage: {e}")
     CI_docs_URLs = pd.DataFrame() # Create an empty DataFrame on failure
 
+# Initialize the converter to convert source doc markdown to html
+md = MarkdownIt()
+
 # --- FLASK ROUTE ---
 
 @app.route('/', methods=['GET', 'POST'])
@@ -100,9 +104,10 @@ def home():
             sources_content = ""
             if response.get('source_names') and not CI_docs_URLs.empty:
                 sources_content = format_sources(response['source_names'], CI_docs_URLs)
+                sources_content_html = md.render(sources_content)
 
             # Add assistant response to session history
-            assistant_message = {"role": "assistant", "content": output, "sources": sources_content}
+            assistant_message = {"role": "assistant", "content": output, "sources": sources_content_html}
             session['messages'].append(assistant_message)
 
             # Ensure the session is saved
