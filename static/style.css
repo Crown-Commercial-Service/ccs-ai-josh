@@ -2,39 +2,37 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f0f2f6;
     margin: 0;
+    /* Ensure body takes full viewport height */
+    min-height: 100vh;
+    /* Use flexbox to manage layout within the body */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
     color: #333;
 }
 
 .container {
     width: 100%;
-    max-width: 800px;
-    height: 95vh;
+    /* Remove max-width to allow filling horizontally */
+    /* max-width: 800px; */
+    /* Set height to fill the available space within the body */
+    height: 100vh; /* Use 100vh to fill viewport height */
     display: flex;
     flex-direction: column;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    /* Remove padding-bottom if disclaimer is outside the container */
+    /* padding-bottom: 40px; */
 }
 
 header {
     padding: 1rem 1.5rem;
     border-bottom: 1px solid #ddd;
     background-color: #fafafa;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 1.5rem;
-}
-
-header p {
-    margin: 0;
-    color: #666;
+    /* Ensure header doesn't grow */
+    flex-shrink: 0;
 }
 
 .chat-window {
@@ -90,16 +88,20 @@ header p {
 }
 
 
-#chat-form {
-    flex-grow: 1;
+.input-form {
+    flex-shrink: 0; /* Prevent form from growing */
     display: flex;
     padding: 1rem;
     border-top: 1px solid #ddd;
     background-color: #fafafa;
+    /* Ensure the form stays at the bottom */
+    margin-top: auto;
+    /* Use flexbox to align items horizontally */
+    align-items: center;
 }
 
-#user-input {
-    flex-grow: 1;
+.input-form input[type="text"] {
+    flex-grow: 1; /* Allow input to grow and take available space */
     padding: 0.75rem;
     border: 1px solid #ccc;
     border-radius: 20px;
@@ -107,7 +109,7 @@ header p {
     font-size: 1rem;
 }
 
-#chat-form button {
+.input-form button {
     padding: 0.75rem 1.5rem;
     border: none;
     background-color: #007bff;
@@ -118,22 +120,18 @@ header p {
     transition: background-color 0.2s;
 }
 
-#chat-form button:hover {
+.input-form button:hover {
     background-color: #0056b3;
 }
 
-.fixed-disclaimer {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
+.disclaimer {
+    flex-shrink: 0;
     color: #666;
-    background-color: rgba(240, 242, 246, 0.8);
-    backdrop-filter: blur(2px);
     text-align: center;
     padding: 5px 0;
     font-size: 0.8rem;
-    z-index: 9999;
+    background-color: #fafafa; /* Match the form background */
+    border-top: 1px solid #ddd; /* Add a border similar to the form */
 }
 
 /* Sources Expander */
