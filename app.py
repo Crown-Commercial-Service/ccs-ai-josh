@@ -1,4 +1,7 @@
 import os
+# Set environment variables for LangChain Azure Search integration
+os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
+os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import io
 import uuid
 import pandas as pd
@@ -14,10 +17,6 @@ from src.multiturn_utils import build_graph, answer_once, format_sources
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Set environment variables for LangChain Azure Search integration
-os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
-os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 
 # Initialize Flask App
 app = Flask(__name__)
