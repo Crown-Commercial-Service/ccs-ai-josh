@@ -105,9 +105,10 @@ def home():
             if response.get('source_names') and not CI_docs_URLs.empty:
                 sources_content = format_sources(response['source_names'], CI_docs_URLs)
                 sources_content_html = md.render(sources_content)
-
+                assistant_message = {"role": "assistant", "content": output, "sources": sources_content_html}
+            else:
+                assistant_message = {"role": "assistant", "content": output}
             # Add assistant response to session history
-            assistant_message = {"role": "assistant", "content": output, "sources": sources_content_html}
             session['messages'].append(assistant_message)
 
             # Ensure the session is saved
