@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Josh</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Josh</h1>
+            <p>An AI system to answer questions about Commercial Intelligence documents.</p>
+        </header>
+        <div class="chat-window" id="chat-window">
+            {% for message in messages %}
+                <div class="chat-message {{ message.role }}">
+                    <div class="message-content">
+                        {{ message.content | safe }}
+                        {% if message.role == 'assistant' and message.sources %}
+                            <details class="sources-expander">
+                                <summary>🔗 View Sources</summary>
+                                <div class="sources-content">
+                                    {{ message.sources | safe }}
+                                </div>
+                            </details>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <form method="POST" action="{{ url_for('home') }}">
+            <input type="text" name="message" placeholder="How can I help?" autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
+
+    </div>
+    <div class="fixed-disclaimer">
+        Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
+    </div>
+    </body>
+</html>
