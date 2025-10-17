@@ -29,15 +29,16 @@
                 </div>
             {% endfor %}
         </div>
-        
-        <form method="POST" action="{{ url_for('home') }}">
+
+        <form method="POST" action="{{ url_for('home') }}" class="input-form">
             <input type="text" name="message" placeholder="How can I help?" autocomplete="off" required>
             <button type="submit">Send</button>
         </form>
 
+         <div class="disclaimer">
+            Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
+        </div>
+
     </div>
-    <div class="fixed-disclaimer">
-        Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
-    </div>
-    </body>
+</body>
 </html>

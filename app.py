@@ -73,7 +73,7 @@ except Exception as e:
 @app.route('/', methods=['GET', 'POST'])
 def home():
     """Handles both displaying the chat and processing new messages."""
-    
+
     # Create a unique session ID for the user if it doesn't exist
     if 'user_id' not in session:
         session['user_id'] = str(uuid.uuid4())
@@ -92,11 +92,11 @@ def home():
             if user_id not in graphs:
                 graphs[user_id] = build_graph(llm=llm, vector_store=vector_store)
             graph = graphs[user_id]
-            
+
             # Get response from the langgraph
             response = answer_once(graph, user_input)
             output = response["answer"]
-            
+
             # Format sources if they exist
             sources_content = ""
             if response.get('source_names') and not CI_docs_URLs.empty:
@@ -105,10 +105,10 @@ def home():
             # Add assistant response to session history
             assistant_message = {"role": "assistant", "content": output, "sources": sources_content}
             session['messages'].append(assistant_message)
-            
+
             # Ensure the session is saved
             session.modified = True
-        
+
         # Redirect to the same page with a GET request to show the updated chat
         return redirect(url_for('home'))
 
