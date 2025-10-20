@@ -351,6 +351,24 @@ aio = ["aiohttp (>=3.0)"]
 tracing = ["opentelemetry-api (>=1.26,<2.0)"]
 
 [[package]]
+name = "azure-data-tables"
+version = "12.7.0"
+description = "Microsoft Azure Azure Data Tables Client Library for Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "azure_data_tables-12.7.0-py3-none-any.whl", hash = "sha256:24ed9b5690aa46c213182e32bb1b39a68dd9f526d84f447c287e3a401b437c10"},
+    {file = "azure_data_tables-12.7.0.tar.gz", hash = "sha256:b14fc94a3223a2835ff5688e17d8e107b27c7cd7c4114138f2ac81373723705d"},
+]
+
+[package.dependencies]
+azure-core = ">=1.29.4"
+isodate = ">=0.6.1"
+typing-extensions = ">=4.3.0"
+yarl = ">=1.0"
+
+[[package]]
 name = "azure-identity"
 version = "1.23.0"
 description = "Microsoft Azure Identity Library for Python"
@@ -5447,4 +5465,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "465a585e89bf71e097a921448a6dea406a73e3d365e784ea6c4ff44ae48ebd58"
+content-hash = "a105c443e88b81eb727a150915bc1ebceb033ef8e7aa61a04b4d91c80273ae4f"

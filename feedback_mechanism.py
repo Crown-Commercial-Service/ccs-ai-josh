@@ -72,12 +72,12 @@ def store_feedback( project_name: str,
         print(f"❌ Failed to store data in Cosmos DB: {e}")
 
 
-store_feedback(
-    project_name="feedbackmechanism",
-    ai_model=os.getenv("DEPLOYMENT_NAME"),
-    thumbs=True,
-    user_query="what is 1+1",
-    feedback_about_response="correct",
-    ai_response="2"
-
-)
+# store_feedback(
+#     project_name="feedbackmechanism",
+#     ai_model=os.getenv("DEPLOYMENT_NAME"),
+#     thumbs=True,
+#     user_query="what is 1+1",
+#     feedback_about_response="correct",
+#     ai_response="2"
+#
+# )

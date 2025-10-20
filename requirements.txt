@@ -170,3 +170,5 @@ xxhash==3.5.0
 yarl==1.20.1
 zc-lockfile==3.0.post1
 zstandard==0.23.0
+azure-data-tables
+flask
