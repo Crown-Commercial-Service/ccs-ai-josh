@@ -154,3 +154,44 @@ header {
 .sources-content a {
     color: #0056b3;
 }
+feedback-btn {
+    /* Remove default button styling */
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 1.5rem; /* Equivalent to 'text-xl' from the HTML */
+    line-height: 1; /* Helps center the emoji/icon */
+    transition: transform 0.1s ease;
+    /* Optional: Ensure text color doesn't interfere, using transparent color for emoji/icon */
+    color: transparent;
+    outline: none;
+}
+
+.feedback-btn:hover {
+    /* Add a slight effect on hover to show interactivity */
+    transform: scale(1.1);
+}
+
+/* Style for the label next to the buttons */
+.feedback-label {
+    /* Adjust text properties to match the 'text-xs text-gray-500' HTML classes */
+    font-size: 0.75rem; /* text-xs */
+    color: #6b7280; /* text-gray-500 */
+}
+
+/* Style for the container to manage spacing and layout */
+.feedback-controls {
+    /* Matches 'mt-4 flex items-center space-x-2' in the HTML */
+    margin-top: 1rem; /* mt-4 (adjust if your base is different) */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* space-x-2 */
+}
+
+/* Styles for when a button is clicked (disabled) */
+.feedback-btn[disabled] {
+    opacity: 0.5;
+    cursor: default;
+    transform: none; /* remove hover effect when disabled */
+}
