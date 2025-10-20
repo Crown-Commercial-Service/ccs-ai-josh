@@ -17,6 +17,23 @@
                 <div class="chat-message {{ message.role }}">
                     <div class="message-content">
                         {{ message.content | safe }}
+
+                        {% if message.role == 'assistant' %}
+                            <!-- Start: Thumbs Up/Down Feedback -->
+
+                            <div class="feedback-controls mt-10 flex items-center space-x-2">
+                                <span class="feedback-label text-xs text-gray-500 mr-1">Was this helpful?</span>
+
+                                <button class="feedback-btn js-feedback-btn" data-response-id="{{ loop.index0 }}" data-feedback-type="up" title="Thumbs Up">
+                                    👍
+                                </button>
+                                <button class="feedback-btn js-feedback-btn" data-response-id="{{ loop.index0 }}" data-feedback-type="down" title="Thumbs Down">
+                                    👎
+                                </button>
+                            </div>
+                            <!-- End: Thumbs Up/Down Feedback -->
+                        {% endif %}
+
                         {% if message.role == 'assistant' and message.sources %}
                             <details class="sources-expander">
                                 <summary>🔗 View Sources</summary>
@@ -40,5 +57,6 @@
         </div>
 
     </div>
+<script src="{{ url_for('static', filename='web_functionality.js') }}"></script>
 </body>
 </html>
