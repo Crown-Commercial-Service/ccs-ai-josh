@@ -16,6 +16,7 @@ from azure.storage.blob import BlobServiceClient
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
+from Feedback.feedback_mechanism import FeedbackMechanism
 
 # --- INITIALIZATION ---
 
@@ -32,6 +33,12 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 graphs = {}
 
 # --- AZURE & LANGCHAIN SETUP (runs once on startup) ---
+
+# feedback mechanism
+STORAGE_CONNECTION_STRING = os.getenv("STORAGE_CONNECTION_STRING")
+TABLE_NAME = os.getenv("TABLE_NAME")
+
+fbm = FeedbackMechanism(storage_connection_string=STORAGE_CONNECTION_STRING, table_name=TABLE_NAME)
 
 # Configure Embeddings Model
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
@@ -144,16 +151,20 @@ def log_feedback():
 
 
     # --- LOGGING/STORAGE LOGIC GOES HERE ---
+    fbm.store_feedback(
+        project_name=project_name,
+        ai_model=ai_model,
+        ai_response=assistant_content,
+        user_query= user_content,
+        feedback_about_response=feedback_text,
+        thumbs= thumbs_up_selected
+    )
 
 
-    print("-" * 50)
-    print(f"User ID: {session.get('user_id', 'UNKNOWN')}")
-    print(f"Feedback Received (Is Thumbs Up?): {thumbs_up_selected}")
-    print(f"User Question: {user_content}")
-    print(f"AI Answer: {assistant_content}")
-    print(f"Feedback Text: {feedback_text}")
-    print("-" * 50)
-    # --- END LOGGING/STORAGE LOGIC ---
+
+    #view results in csv locally
+    df = fbm.table_to_pandas()
+    df.to_csv("feedback.csv", index=False)
 
     # Return a success message to the JavaScript
     return jsonify({

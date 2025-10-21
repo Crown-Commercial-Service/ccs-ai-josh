@@ -222,3 +222,5 @@ xxhash==3.6.0
 yarl==1.22.0
 zc.lockfile==4.0
 zstandard==0.23.0
+# Feedback mechanism package
+git+https://github.com/DavisAgyemang/Universal_Feedback_tool.git#egg=feedback_mechanism
