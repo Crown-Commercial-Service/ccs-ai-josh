@@ -1,14 +1,14 @@
 body {
+    /* Keep existing styles, but add margin: 0 to ensure no default spacing */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f0f2f6;
-    margin: 0;
-    /* Ensure body takes full viewport height */
+    margin: 0; /* Add this to prevent browser default margin from interfering */
     min-height: 100vh;
-    /* Use flexbox to manage layout within the body */
     display: flex;
     justify-content: center;
     align-items: center;
     color: #333;
+    overflow: hidden; /* Optional: Prevent body scroll when the app fills the viewport */
 }
 
 .container {
@@ -194,4 +194,109 @@ feedback-btn {
     opacity: 0.5;
     cursor: default;
     transform: none; /* remove hover effect when disabled */
+}
+.feedback-selected {
+    /* Example: Make the emoji pop with a shadow */
+    filter: drop-shadow(0 0 5px #007bff); /* A subtle blue glow, adjust color as desired */
+    transform: scale(1.15); /* Make it a bit bigger than the hover state */
+}
+
+/* Optional: Adjust neutral/unselected state to be more subtle */
+.feedback-btn:not(.feedback-selected) {
+    opacity: 0.6; /* Unselected buttons are slightly faded */
+}
+
+.feedback-btn:not(.feedback-selected):hover {
+    opacity: 1; /* Restore opacity on hover for unselected buttons */
+}
+
+/* Ensure selected button doesn't have a hover effect */
+.feedback-selected:hover {
+    transform: scale(1.15); /* Keep the selected scale */
+    filter: drop-shadow(0 0 5px #007bff); /* Keep the glow */
+}
+
+/* Modal Header/Instruction */
+.modal-content h2 {
+    margin-top: 0;
+    font-size: 1.5em;
+    width: 90%;
+    max-width: 500px;
+    color: #333;
+    text-align: center;
+}
+
+.modal-instruction {
+    text-align: center;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+/* Textarea */
+#feedback-textbox {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    box-sizing: border-box; /* Include padding and border in the total size */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: vertical;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+/* Modal Buttons */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px; /* Matching the input form buttons */
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    font-size: 1rem;
+}
+
+.modal-btn.submit {
+    background-color: #007bff;
+    color: white;
+}
+
+.modal-btn.submit:hover {
+    background-color: #0056b3;
+}
+
+.modal-btn.cancel {
+    background-color: #e9ecef;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.modal-btn.cancel:hover {
+    background-color: #ddd;
+}
+
+.modal-overlay {
+    position: fixed; /* This is correct for full-screen overlay */
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100vw; /* Use 100vw to ensure it covers the entire viewport width */
+    height: 100vh; /* Use 100vh to ensure it covers the entire viewport height */
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center; /* This centers the content vertically */
+    justify-content: center; /* This centers the content horizontally */
+    overflow: auto;
+}
+/* Animation for the modal */
+@keyframes animatetop {
+    from { opacity: 0; transform: translateY(-50px); }
+    to { opacity: 1; transform: translateY(0); }
 }
