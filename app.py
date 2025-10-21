@@ -1,11 +1,14 @@
 import os
+
+from dvc.testing.benchmarks.fixtures import project
+
 # Set environment variables for LangChain Azure Search integration
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
 os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import io
 import uuid
 import pandas as pd
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from markdown_it import MarkdownIt
 from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
@@ -120,6 +123,49 @@ def home():
     # GET: This block runs on initial page load or after the redirect
     # It simply renders the page with the full message history
     return render_template('index.html', messages=session.get('messages', []))
+
+
+@app.route('/feedback', methods=['POST'])
+def log_feedback():
+    """Receives feedback data from the client-side JavaScript."""
+
+    if not request.is_json:
+        return jsonify({"error": "Missing JSON in request"}), 400
+
+    data = request.get_json()
+
+    # The four required values are now in the 'data' dictionary:
+    thumbs_up_selected = data.get('thumbs_up_selected')
+    assistant_content = data.get('assistant_content')
+    user_content = data.get('user_content')
+    feedback_text = data.get('feedback_text')  # This will be "no feedback" as requested
+    project_name = "AI-Josh"
+    ai_model = os.getenv("DEPLOYMENT_NAME")
+
+
+    # --- LOGGING/STORAGE LOGIC GOES HERE ---
+
+
+    print("-" * 50)
+    print(f"User ID: {session.get('user_id', 'UNKNOWN')}")
+    print(f"Feedback Received (Is Thumbs Up?): {thumbs_up_selected}")
+    print(f"User Question: {user_content}")
+    print(f"AI Answer: {assistant_content}")
+    print(f"Feedback Text: {feedback_text}")
+    print("-" * 50)
+    # --- END LOGGING/STORAGE LOGIC ---
+
+    # Return a success message to the JavaScript
+    return jsonify({
+        "status": "success",
+        "message": "Feedback logged",
+        "data_received": {
+            "thumbs_up": thumbs_up_selected,
+            "ai_content": assistant_content,
+            "user_content": user_content,
+            "text": feedback_text
+        }
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
