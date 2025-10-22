@@ -161,11 +161,6 @@ def log_feedback():
     )
 
 
-
-    #view results in csv locally
-    df = fbm.table_to_pandas()
-    df.to_csv("feedback.csv", index=False)
-
     # Return a success message to the JavaScript
     return jsonify({
         "status": "success",
