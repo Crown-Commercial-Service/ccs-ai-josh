@@ -18,6 +18,7 @@ atpublic==6.0.2
 attrs==25.4.0
 azure-common==1.1.28
 azure-core==1.35.0
+azure-data-tables==12.7.0
 azure-identity==1.23.0
 azure-search-documents==11.5.3
 azure-storage-blob==12.26.0
@@ -26,7 +27,7 @@ beautifulsoup4==4.14.2
 billiard==4.2.2
 bleach==6.2.0
 blinker==1.9.0
--e git+https://github.com/Crown-Commercial-Service/ccs-ai-josh@a54ba1c483578d4fced6bb0c943533900eb743df#egg=ccs_ai_josh
+-e git+https://github.com/Crown-Commercial-Service/ccs-ai-josh@33aaec591e98513ccc490d3b00d70b49b2769dcc#egg=ccs_ai_josh
 celery==5.5.3
 certifi==2025.10.5
 cffi==2.0.0
@@ -60,6 +61,7 @@ dvc-task==0.40.2
 entrypoints==0.4
 executing==2.2.1
 fastjsonschema==2.21.2
+feedback_mechanism @ git+https://github.com/DavisAgyemang/Universal_Feedback_tool.git@18008c7d02ae6a0748958ec9f6339bed43f5564c
 filelock==3.20.0
 Flask==3.1.2
 flatten-dict==0.4.2
@@ -79,6 +81,7 @@ httpx==0.28.1
 httpx-sse==0.4.3
 hydra-core==1.3.2
 idna==3.11
+iniconfig==2.3.0
 ipykernel==7.0.1
 ipython==9.6.0
 ipython_pygments_lexers==1.1.1
@@ -146,6 +149,7 @@ pathspec==0.12.1
 pexpect==4.9.0
 pillow==12.0.0
 platformdirs==4.5.0
+pluggy==1.6.0
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
 propcache==0.4.1
@@ -162,6 +166,7 @@ Pygments==2.19.2
 pygtrie==2.5.0
 PyJWT==2.10.1
 pyparsing==3.2.5
+pytest==8.4.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-json-logger==4.0.0
@@ -222,5 +227,3 @@ xxhash==3.6.0
 yarl==1.22.0
 zc.lockfile==4.0
 zstandard==0.23.0
-# Feedback mechanism package
-git+https://github.com/DavisAgyemang/Universal_Feedback_tool.git#egg=feedback_mechanism
