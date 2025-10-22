@@ -108,7 +108,7 @@ def home():
 
             # Get response from the langgraph
             response = answer_once(graph, user_input)
-            output = response["answer"]
+            output = md.render(response["answer"])
 
             # Format sources if they exist
             sources_content = ""
