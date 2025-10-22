@@ -23,10 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return messageElement ? messageElement.innerText.trim() : 'Content Not Found';
     };
 
-    const getSourcesContent = (index) => {
-        const sourcesElement = document.querySelector(`.chat-message[data-message-index="${index}"] .sources-content`);
-        return sourcesElement ? sourcesElement.innerHTML.trim() : 'No Sources Provided';
-    };
+
 
     // Function to send feedback to Flask
     const sendFeedback = (payload) => {
@@ -91,14 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Thumbs Up: Log immediately with no text feedback (as per original logic)
                 const userContent = getMessageContent(userIndex);
                 const assistantContent = getMessageContent(assistantIndex);
-                const sourceLinks = getSourcesContent(assistantIndex);
+
 
                 const payload = {
                     thumbs_up_selected: true,
                     assistant_content: assistantContent,
                     user_content: userContent,
                     feedback_text: "no feedback", // 'no feedback' for thumbs up
-                    source_links: sourceLinks
                 };
                 sendFeedback(payload);
 
@@ -108,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Store message context in hidden modal fields
                 document.getElementById('modal-user-content').value = getMessageContent(userIndex);
                 document.getElementById('modal-assistant-content').value = getMessageContent(assistantIndex);
-                document.getElementById('modal-source-links').value = getSourcesContent(assistantIndex);
                 document.getElementById('modal-assistant-index').value = assistantIndex;
                 document.getElementById('modal-user-index').value = userIndex;
 
@@ -142,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Get context from the hidden fields
         const userContent = document.getElementById('modal-user-content').value;
         const assistantContent = document.getElementById('modal-assistant-content').value;
-        const sourceLinks = document.getElementById('modal-source-links').value;
         const assistantIndex = document.getElementById('modal-assistant-index').value;
 
         // Find the 'thumbs down' button that corresponds to this message index
@@ -159,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 assistant_content: assistantContent,
                 user_content: userContent,
                 feedback_text: detailedFeedback, // Send the collected text
-                source_links: sourceLinks
             };
             sendFeedback(payload);
         } else {
