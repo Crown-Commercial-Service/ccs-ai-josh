@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Josh</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Josh</h1>
+            <p>An AI system to answer questions about Commercial Intelligence documents.</p>
+        </header>
+        <div class="chat-window" id="chat-window">
+            {% for message in messages %}
+                <div class="chat-message {{ message.role }}" data-message-index="{{ loop.index0 }}">
+                    <div class="message-content">
+                        {{ message.content | safe }}
+
+                        {% if message.role == 'assistant' %}
+                            <div class="feedback-controls mt-10 flex items-center space-x-2"
+                                 data-assistant-index="{{ loop.index0 }}"
+                                 data-user-index="{{ loop.index0 - 1 }}">
+                                <span class="feedback-label text-xs text-gray-500 mr-1">Was this helpful?</span>
+
+                                <button class="feedback-btn js-feedback-btn" data-index="{{ loop.index0 }}" data-feedback-type="up" data-feedback-state="neutral" title="Thumbs Up">
+                                    👍
+                                </button>
+                                <button class="feedback-btn js-feedback-btn" data-index="{{ loop.index0 }}" data-feedback-type="down" data-feedback-state="neutral" title="Thumbs Down">
+                                    👎
+                                </button>
+                            </div>
+
+                            {% endif %}
+
+                        {% if message.role == 'assistant' and message.sources %}
+                            <details class="sources-expander">
+                                <summary>🔗 View Sources</summary>
+                                <div class="sources-content">
+                                    {{ message.sources | safe }}
+                                </div>
+                            </details>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('home') }}" class="input-form">
+            <input type="text" name="message" placeholder="How can I help?" autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
+
+         <div class="disclaimer">
+            Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
+        </div>
+
+    </div>
+
+    <div id="feedback-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h2>Give Your Feedback</h2>
+            <p class="modal-instruction">Help us improve the response:</p>
+            <textarea id="feedback-textbox" rows="12"  placeholder="What went wrong with the answer?"></textarea>
+            <div class="modal-actions">
+                <button id="modal-submit-btn" class="modal-btn submit">Submit Feedback</button>
+                <button id="modal-cancel-btn" class="modal-btn cancel">Cancel</button>
+            </div>
+            <input type="hidden" id="modal-user-content">
+            <input type="hidden" id="modal-assistant-content">
+            <input type="hidden" id="modal-source-links">
+            <input type="hidden" id="modal-assistant-index">
+            <input type="hidden" id="modal-user-index">
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='web_functionality.js') }}"></script>
+</body>
+</html>

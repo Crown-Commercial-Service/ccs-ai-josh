@@ -8,8 +8,8 @@ import pandas as pd
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain_community.vectorstores.azuresearch import AzureSearch
-from src.multiturn_utils import build_graph, answer_once
-from src.eval_utils import evaluate_response
+from multiturn_utils import build_graph, answer_once
+from eval_utils import evaluate_response
 
 load_dotenv()
 

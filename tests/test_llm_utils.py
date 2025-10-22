@@ -1,4 +1,4 @@
-from src.llm_utils import check_index_naming
+from llm_utils import check_index_naming
 
 # these classes allow us to test the functions without actually connecting to an index
 class MockField:
