@@ -63,7 +63,7 @@ llm = AzureChatOpenAI(
     openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
+    # temperature=0.0 this had to go because gpt 5 does not have that parameter anymore
 )
 
 # Read CI document URLs from Azure Blob Storage
