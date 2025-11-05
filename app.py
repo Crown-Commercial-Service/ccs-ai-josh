@@ -74,6 +74,7 @@ try:
     blob_client = container_client.get_blob_client("CI_document_URLs.csv")
     blob_data = blob_client.download_blob()
     CI_docs_URLs = pd.read_csv(io.BytesIO(blob_data.readall()))
+    CI_docs_URLs = CI_docs_URLs.rename(columns={"FileName": "File Name", "AzureURL": "File URL" })
 except Exception as e:
     print(f"Error loading CSV from Blob Storage: {e}")
     CI_docs_URLs = pd.DataFrame() # Create an empty DataFrame on failure
