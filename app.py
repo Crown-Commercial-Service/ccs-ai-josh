@@ -66,18 +66,8 @@ llm = AzureChatOpenAI(
     temperature=0.0
 )
 
-# Read CI document URLs from Azure Blob Storage
-try:
-    credential = DefaultAzureCredential()
-    blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_URL'), credential=credential)
-    container_client = blob_service_client.get_container_client(os.getenv("BLOB_CONFIG_CONTAINER"))
-    blob_client = container_client.get_blob_client("CI_document_URLs.csv")
-    blob_data = blob_client.download_blob()
-    CI_docs_URLs = pd.read_csv(io.BytesIO(blob_data.readall()))
-    CI_docs_URLs = CI_docs_URLs.rename(columns={"FileName": "File Name", "AzureURL": "File URL" })
-except Exception as e:
-    print(f"Error loading CSV from Blob Storage: {e}")
-    CI_docs_URLs = pd.DataFrame() # Create an empty DataFrame on failure
+
+
 
 # Initialize the converter to convert source doc markdown to html
 md = MarkdownIt()
@@ -87,6 +77,18 @@ md = MarkdownIt()
 @app.route('/', methods=['GET', 'POST'])
 def home():
     """Handles both displaying the chat and processing new messages."""
+    # Read CI document URLs from Azure Blob Storage
+    try:
+        credential = DefaultAzureCredential()
+        blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_URL'), credential=credential)
+        container_client = blob_service_client.get_container_client(os.getenv("BLOB_CONFIG_CONTAINER"))
+        blob_client = container_client.get_blob_client("CI_document_URLs.csv")
+        blob_data = blob_client.download_blob()
+        CI_docs_URLs = pd.read_csv(io.BytesIO(blob_data.readall()))
+        CI_docs_URLs = CI_docs_URLs.rename(columns={"FileName": "File Name", "AzureURL": "File URL"})
+    except Exception as e:
+        print(f"Error loading CSV from Blob Storage: {e}")
+        CI_docs_URLs = pd.DataFrame()  # Create an empty DataFrame on failure
 
     # Create a unique session ID for the user if it doesn't exist
     if 'user_id' not in session:
