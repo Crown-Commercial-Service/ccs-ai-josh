@@ -60,10 +60,9 @@ vector_store: AzureSearch = AzureSearch(
 # Configure LLM
 llm = AzureChatOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
+    api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
 )
 
 
