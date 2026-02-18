@@ -136,6 +136,7 @@ rich==14.1.0
 rpds-py==0.26.0
 ruamel-yaml-clib==0.2.12
 ruamel-yaml==0.18.14
+ruff==0.15.1
 scmrepo==3.5.2
 seaborn==0.13.2
 semver==3.0.4

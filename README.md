@@ -22,6 +22,55 @@ An AI-powered assistant to answer questions about the contents of documents.
     ```
 Note that these tests require an internet connection to run, because they call an LLM.
 
+## Developer Tooling (Pre-commit, Ruff, pytest)
+
+This project uses:
+
+- [pre-commit](https://pre-commit.com/) for running checks automatically before each commit.
+- [Ruff](https://docs.astral.sh/ruff/) for fast linting.
+- [pytest](https://docs.pytest.org/) for unit testing.
+
+### Install tooling
+
+If you already installed dependencies from `requirements.txt`, install the remaining developer tools:
+
+```bash
+python -m pip install pre-commit ruff
+```
+
+Or install all at once:
+
+```bash
+python -m pip install -r requirements.txt pre-commit ruff
+```
+
+### Set up pre-commit hooks
+
+Install hooks locally:
+
+```bash
+pre-commit install
+```
+
+Run all hooks manually across the repository:
+
+```bash
+pre-commit run --all-files
+```
+
+### Run Ruff and pytest manually
+
+Run Ruff:
+
+```bash
+ruff check .
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
 
 ## Contribution Guidelines
 When contributing to this codebase, please follow these guidelines:

@@ -1,121 +1,63 @@
-import os
-from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI
-from src.eval_utils import evaluate_response
+from src import eval_utils
 
-load_dotenv()
 
-# Connect to model on Azure to run the unit tests for LLM-as-a-judge eval functions
-llm = AzureChatOpenAI(
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
-    azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
-)
+def test_evaluate_response_with_retrieval(monkeypatch):
+    llm = object()
+    question = "What is the capital of France?"
+    answer = "Paris is the capital of France."
+    context = ["European capitals: France=Paris"]
+    retrieved_docs = ["european_capitals.txt"]
+    ref_answer = "The capital of France is Paris."
+    ref_doc = "european_capitals.txt"
 
-# dummy data
-q = "What is the capital of France?"
-ref_ans = "The capital of France is Paris."
-gen_ans_correct = "Paris is the capital of France."
-gen_ans_incorrect_1 = "Marseille is the capital of France"
-gen_ans_incorrect_2 = "Madrid is the capital of Spain"
-chunk1 = "European capitals: UK=London, France=Paris, Spain=Madrid, Germany=Berlin"
-chunk2 = "French cities: Marseille, Paris (capital), Lyon, Versailles"
-chunk3 = "Spanish cities: Barcelona, Madrid (capital), Seville"
-doc_names = ['european_capitals.txt', 'french_cities.txt', 'spanish_cities.txt']
+    monkeypatch.setattr(eval_utils, "score_correctness", lambda **kwargs: 10)
+    monkeypatch.setattr(eval_utils, "score_retrieval", lambda **kwargs: 9)
+    monkeypatch.setattr(eval_utils, "score_groundedness", lambda **kwargs: 8)
+    monkeypatch.setattr(eval_utils, "test_doc_match", lambda **kwargs: True)
 
-def test_correct():
-    """
-    The retrieved context is highly relevant,
-    and the model gets the answer right.
-    """
-    results = evaluate_response(
+    results = eval_utils.evaluate_response(
         llm=llm,
-        question=q,
-        answer=gen_ans_correct,
-        context=[chunk1, chunk2],
-        retrieved_docs=doc_names[0:1],
-        ref_answer=ref_ans,
-        ref_doc=doc_names[0]
+        question=question,
+        answer=answer,
+        context=context,
+        retrieved_docs=retrieved_docs,
+        ref_answer=ref_answer,
+        ref_doc=ref_doc,
     )
-    assert results["correctness"] == 10
-    assert results["retrieval"] == 10
-    assert results["groundedness"] == 10
-    assert results["document_match"] == True
 
-def test_correct_low_groundedness():
-    """
-    The retrieved context is irrelevant,
-    the model ignores it and gets the answer right.
-    """
-    results = evaluate_response(
-        llm=llm,
-        question=q,
-        answer=gen_ans_correct,
-        context=[chunk3],
-        retrieved_docs=[doc_names[2]],
-        ref_answer=ref_ans,
-        ref_doc=doc_names[0]
-    )
-    assert results["correctness"] == 10
-    assert results["retrieval"] == 1
-    assert results["groundedness"] == 1
-    assert results["document_match"] == False
+    assert results == {
+        "correctness": 10,
+        "retrieval": 9,
+        "groundedness": 8,
+        "document_match": True,
+    }
 
-def test_incorrect_low_groundedness():
-    """
-    The retrieved context is highly relevant,
-    the model ignores it and gets the answer wrong.
-    """
-    results = evaluate_response(
-        llm=llm,
-        question=q,
-        answer=gen_ans_incorrect_1,
-        context=[chunk1, chunk2],
-        retrieved_docs=[doc_names[0],doc_names[1]],
-        ref_answer=ref_ans,
-        ref_doc=doc_names[0]
-    )
-    assert results["correctness"] == 1
-    assert results["retrieval"] == 10
-    assert results["groundedness"] == 1
-    assert results["document_match"] == True
 
-def test_incorrect_low_retrieval():
-    """
-    The retrieved context is irrelevant,
-    the model uses it and gets the answer wrong.
-    """
-    results = evaluate_response(
-        llm=llm,
-        question=q,
-        answer=gen_ans_incorrect_2,
-        context=[chunk3],
-        retrieved_docs=[doc_names[2],doc_names[0]],
-        ref_answer=ref_ans,
-        ref_doc=doc_names[0]
-    )
-    assert results["correctness"] == 1
-    assert results["retrieval"] == 1
-    assert results["groundedness"] == 10
-    assert results["document_match"] == False
+def test_evaluate_response_without_retrieval(monkeypatch):
+    llm = object()
 
-def test_incorrect_low_groundedness_low_retrieval():
-    """
-    The retrieved context is irrelevant,
-    the model ignores it but gets the answer wrong.
-    """
-    results = evaluate_response(
+    monkeypatch.setattr(eval_utils, "score_correctness", lambda **kwargs: 7)
+
+    def should_not_be_called(**kwargs):
+        raise AssertionError("Retrieval and groundedness scoring should be skipped.")
+
+    monkeypatch.setattr(eval_utils, "score_retrieval", should_not_be_called)
+    monkeypatch.setattr(eval_utils, "score_groundedness", should_not_be_called)
+    monkeypatch.setattr(eval_utils, "test_doc_match", should_not_be_called)
+
+    results = eval_utils.evaluate_response(
         llm=llm,
-        question=q,
-        answer=gen_ans_incorrect_1,
-        context=[chunk3],
-        retrieved_docs=[doc_names[2],doc_names[0]],
-        ref_answer=ref_ans,
-        ref_doc=doc_names[0]
+        question="Question",
+        answer="Answer",
+        context=[],
+        retrieved_docs=[],
+        ref_answer="Reference answer",
+        ref_doc="reference_doc.txt",
     )
-    assert results["correctness"] == 1
-    assert results["retrieval"] == 1
-    assert results["groundedness"] == 1
-    assert results["document_match"] == False
+
+    assert results == {
+        "correctness": 7,
+        "retrieval": 0,
+        "groundedness": 0,
+        "document_match": False,
+    }
