@@ -125,6 +125,7 @@ pyjwt==2.10.1
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
+pytest
 pytz==2025.2
 pywin32==311; sys_platform == "win32"
 pyyaml==6.0.2
