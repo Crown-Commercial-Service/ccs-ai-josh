@@ -4,8 +4,6 @@ os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
 # Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
 os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 from dotenv import load_dotenv
-from azure.search.documents.indexes import SearchIndexClient
-from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from multiturn_utils import build_graph, answer_once
