@@ -1,6 +1,5 @@
 import os
 
-from dvc.testing.benchmarks.fixtures import project
 
 # Set environment variables for LangChain Azure Search integration
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"

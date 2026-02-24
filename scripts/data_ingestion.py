@@ -164,7 +164,7 @@ def retrieve_kahootz_file_info(endpoint:str, user_email:str, password:str, group
         if session_response.get("status") == 9001:
             kahootz_site = session_response.get("siteurl")
             kahootz_token = session_response.get("tokenid")
-            print(f"Session token retrieved")
+            print("Session token retrieved")
         else:
             raise Exception(f"API returned status: {session_response.get('status')} - {session_response.get('status text')}")
     else:
@@ -177,7 +177,7 @@ def retrieve_kahootz_file_info(endpoint:str, user_email:str, password:str, group
     )
     if doc_list:
         if doc_list.get("status") == 9001:
-            print(f"Document list retrieved")
+            print("Document list retrieved")
             doc_df = doc_list_to_df(doc_list)
             print(f"Details retrieved for {len(doc_df)} documents")
         else:

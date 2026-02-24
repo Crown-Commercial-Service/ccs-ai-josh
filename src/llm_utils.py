@@ -1,4 +1,3 @@
-import os
 from langchain import hub
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
@@ -9,7 +8,7 @@ def check_index_naming(index_client, index_name:str) -> bool:
     Args:
         index_client: An instance of SearchIndexClient (or a mock).
         index_name: the name of the index
-    
+
     Returns:
         bool: True if both 'content_vector' and 'content' fields exist, False otherwise.
     """
@@ -53,8 +52,8 @@ def generate_response(question:str, vector_store, llm) -> dict:
     """Invoke the LLM graph to generate a response to a question.
     """
     # wrapper functions used here, because:
-    # we need to pass two arguments into the retrieval and generation steps 
-    # BUT langgraph's add_sequence only accepts functions with one arg (state) 
+    # we need to pass two arguments into the retrieval and generation steps
+    # BUT langgraph's add_sequence only accepts functions with one arg (state)
     def retrieve_with_store(state: State):
         return retrieve(state, vector_store)
     def generate_with_llm(state: State):

@@ -6,7 +6,6 @@ os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv
-from azure.search.documents.indexes import SearchIndexClient
 from azure.identity import DefaultAzureCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI

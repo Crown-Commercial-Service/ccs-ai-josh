@@ -4,7 +4,6 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.core.credentials import AzureKeyCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
-from typing_extensions import List, TypedDict
 from llm_utils import check_index_naming, generate_response
 
 load_dotenv()

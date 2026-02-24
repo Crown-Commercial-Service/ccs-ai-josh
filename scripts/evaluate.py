@@ -67,7 +67,7 @@ for i in range(len(truthset)):
     # reformat the retrieved doc names to match the naming convention in the truthset
     retrieved_docnames = [re.sub(r'.pdf$', '', j, flags=re.IGNORECASE) for j in truthset['Retrieved Files'][i]]
     retrieved_docnames = [re.sub(r'One Page ', '', k) for k in retrieved_docnames]
-    retrieved_docnames = [l.strip() for l in retrieved_docnames]
+    retrieved_docnames = [docname.strip() for docname in retrieved_docnames]
     score = evaluate_response(
         llm=llm,
         question=truthset['Question'][i],

@@ -1,5 +1,5 @@
 from typing import Any, Iterator, Dict
-from functools import partial, wraps, WRAPPER_ASSIGNMENTS
+from functools import partial
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
 from langchain_core.documents.base import Document
@@ -206,6 +206,6 @@ def format_sources(source_names, CI_docs_URLs):
     # Create formatted source block for expander
     sources_content = f"**Most Relevant Document:**\n- {source_links[0]}"
     if len(source_links) > 1:
-        sources_content += f"\n\n**Other Related Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
+        sources_content += "\n\n**Other Related Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
 
     return sources_content

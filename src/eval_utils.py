@@ -1,16 +1,12 @@
 import os
-import io
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from langchain_openai import AzureChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage
+from typing import TYPE_CHECKING, Any
+from langchain_core.messages import HumanMessage, SystemMessage
 from unicodedata import normalize
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-from reportlab.lib import colors
-from reportlab.platypus import Table, TableStyle
+
+if TYPE_CHECKING:
+    from langchain_openai import AzureChatOpenAI
+else:
+    AzureChatOpenAI = Any
 
 def load_prompt(prompt_name):
     prompt_path = os.path.join('ccs_ai_josh', 'prompts', prompt_name)
@@ -95,7 +91,7 @@ def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str
 
     Generated answer: {generated_answer}
 
-    Score the groundedness of the generated answer in the context from 1 (not grounded) to 10 (fully grounded). 
+    Score the groundedness of the generated answer in the context from 1 (not grounded) to 10 (fully grounded).
     Reply with only the score.
     """
     messages = [
