@@ -21,7 +21,9 @@ def _patch_scores(monkeypatch, *, correctness, retrieval, groundedness, document
 
 
 def test_correct(monkeypatch):
-    _patch_scores(monkeypatch, correctness=10, retrieval=10, groundedness=10, document_match=True)
+    _patch_scores(
+        monkeypatch, correctness=10, retrieval=10, groundedness=10, document_match=True
+    )
 
     results = evaluate_response(
         llm=object(),
@@ -39,7 +41,9 @@ def test_correct(monkeypatch):
 
 
 def test_correct_low_groundedness(monkeypatch):
-    _patch_scores(monkeypatch, correctness=10, retrieval=1, groundedness=1, document_match=False)
+    _patch_scores(
+        monkeypatch, correctness=10, retrieval=1, groundedness=1, document_match=False
+    )
 
     results = evaluate_response(
         llm=object(),
@@ -57,7 +61,9 @@ def test_correct_low_groundedness(monkeypatch):
 
 
 def test_incorrect_low_groundedness(monkeypatch):
-    _patch_scores(monkeypatch, correctness=1, retrieval=10, groundedness=1, document_match=True)
+    _patch_scores(
+        monkeypatch, correctness=1, retrieval=10, groundedness=1, document_match=True
+    )
 
     results = evaluate_response(
         llm=object(),
@@ -75,7 +81,9 @@ def test_incorrect_low_groundedness(monkeypatch):
 
 
 def test_incorrect_low_retrieval(monkeypatch):
-    _patch_scores(monkeypatch, correctness=1, retrieval=1, groundedness=10, document_match=False)
+    _patch_scores(
+        monkeypatch, correctness=1, retrieval=1, groundedness=10, document_match=False
+    )
 
     results = evaluate_response(
         llm=object(),
@@ -93,7 +101,9 @@ def test_incorrect_low_retrieval(monkeypatch):
 
 
 def test_incorrect_low_groundedness_low_retrieval(monkeypatch):
-    _patch_scores(monkeypatch, correctness=1, retrieval=1, groundedness=1, document_match=False)
+    _patch_scores(
+        monkeypatch, correctness=1, retrieval=1, groundedness=1, document_match=False
+    )
 
     results = evaluate_response(
         llm=object(),

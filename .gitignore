@@ -6,3 +6,5 @@ raw_docs/*
 .ipynb_checkpoints/*
 *.DS_Store
 *raw_docs/*
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md

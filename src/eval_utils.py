@@ -8,13 +8,17 @@ if TYPE_CHECKING:
 else:
     AzureChatOpenAI = Any
 
+
 def load_prompt(prompt_name):
-    prompt_path = os.path.join('ccs_ai_josh', 'prompts', prompt_name)
-    with open(prompt_path, 'r', encoding='utf-8') as file:
+    prompt_path = os.path.join("ccs_ai_josh", "prompts", prompt_name)
+    with open(prompt_path, "r", encoding="utf-8") as file:
         prompt_text = file.read()
     return prompt_text
 
-def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, reference_answer:str) -> int:
+
+def score_correctness(
+    llm: AzureChatOpenAI, question: str, generated_answer: str, reference_answer: str
+) -> int:
     """Uses an LLM-as-a-judge approach to score the similarity between a generated answer and reference answer.
     Args:
         llm: a LangChain LLM connection object
@@ -23,7 +27,7 @@ def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, r
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = load_prompt('correctness_score_prompt.txt')
+    system_prompt = load_prompt("correctness_score_prompt.txt")
 
     user_prompt = f"""Question: {question}
 
@@ -31,10 +35,7 @@ def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, r
 
     Generated answer: {generated_answer}
     """
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
     response = llm.invoke(messages)
     score_str = response.content.strip()
     try:
@@ -44,7 +45,8 @@ def score_correctness(llm:AzureChatOpenAI, question:str, generated_answer:str, r
         raise ValueError(f"Model returned unexpected score: '{score_str}'") from e
     return score
 
-def score_retrieval(llm:AzureChatOpenAI, question:str, context:list) -> int:
+
+def score_retrieval(llm: AzureChatOpenAI, question: str, context: list) -> int:
     """Uses an LLM-as-a-judge approach to score the similarity between a generated answer and reference answer.
     Args:
         llm: a LangChain LLM connection object
@@ -53,7 +55,7 @@ def score_retrieval(llm:AzureChatOpenAI, question:str, context:list) -> int:
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = load_prompt('retrieval_score_prompt.txt')
+    system_prompt = load_prompt("retrieval_score_prompt.txt")
 
     user_prompt = f"""Question: {question}
 
@@ -62,10 +64,7 @@ def score_retrieval(llm:AzureChatOpenAI, question:str, context:list) -> int:
     How likely is it that the retrieved context contains the necessary information to answer the question?
     Reply with a score from 1 (not at all) to 10 (completely covered). Only provide the score.
     """
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
     response = llm.invoke(messages)
     score_str = response.content.strip()
     try:
@@ -75,7 +74,10 @@ def score_retrieval(llm:AzureChatOpenAI, question:str, context:list) -> int:
         raise ValueError(f"Model returned unexpected score: '{score_str}'") from e
     return score
 
-def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str) -> int:
+
+def score_groundedness(
+    llm: AzureChatOpenAI, context: list, generated_answer: str
+) -> int:
     """Uses an LLM-as-a-judge approach to score the groundedness of a generated answer with respect to its context.
     Args:
         llm: a LangChain LLM connection object
@@ -84,7 +86,7 @@ def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str
     Returns:
         score: the correctness score, from 1 (poorest) to 10 (best)
     """
-    system_prompt = load_prompt('groundedness_score_prompt.txt')
+    system_prompt = load_prompt("groundedness_score_prompt.txt")
 
     user_prompt = f"""
     Context/retrieved document: {context}
@@ -94,10 +96,7 @@ def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str
     Score the groundedness of the generated answer in the context from 1 (not grounded) to 10 (fully grounded).
     Reply with only the score.
     """
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
     response = llm.invoke(messages)
     score_str = response.content.strip()
     try:
@@ -107,7 +106,8 @@ def score_groundedness(llm:AzureChatOpenAI, context: list, generated_answer: str
         raise ValueError(f"Model returned unexpected score: '{score_str}'") from e
     return score
 
-def test_doc_match(retrieved_doc:str, ref_doc:str) -> bool:
+
+def test_doc_match(retrieved_doc: str, ref_doc: str) -> bool:
     """Tests whether a document name matches the reference doc.
     Args:
         retrieved_doc: the name of the document that was retrieved during RAG
@@ -116,9 +116,18 @@ def test_doc_match(retrieved_doc:str, ref_doc:str) -> bool:
         match_status: whether the retrieved document matches the reference document
     """
     # handling differences in encoding, focusing just on matching string content
-    return normalize('NFC', retrieved_doc) == normalize('NFC', ref_doc)
+    return normalize("NFC", retrieved_doc) == normalize("NFC", ref_doc)
 
-def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:list, retrieved_docs:list, ref_answer:str, ref_doc:str) -> dict:
+
+def evaluate_response(
+    llm: AzureChatOpenAI,
+    question: str,
+    answer: str,
+    context: list,
+    retrieved_docs: list,
+    ref_answer: str,
+    ref_doc: str,
+) -> dict:
     """Evaluates a response by calculating correctness, retrieval accuracy and groundedness.
     Args:
         llm: a LangChain LLM connection object
@@ -132,27 +141,18 @@ def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:lis
         results: the scores for correctness, retrieval accuracy and groundedness, each from 1 (poorest) to 10 (best)
     """
     correctness_score = score_correctness(
-        llm=llm,
-        question=question,
-        generated_answer=answer,
-        reference_answer=ref_answer
+        llm=llm, question=question, generated_answer=answer, reference_answer=ref_answer
     )
     # for cases where retrieval was triggered
     if len(retrieved_docs) > 0:
-        retrieval_score = score_retrieval(
-            llm=llm,
-            question=question,
-            context=context
-        )
+        retrieval_score = score_retrieval(llm=llm, question=question, context=context)
         groundedness_score = score_groundedness(
-            llm=llm,
-            context=context,
-            generated_answer=answer
+            llm=llm, context=context, generated_answer=answer
         )
         document_match = test_doc_match(
             # here we assume that retrieved docs are ordered by most to least relevant
             retrieved_doc=retrieved_docs[0],
-            ref_doc=ref_doc
+            ref_doc=ref_doc,
         )
     # for cases where retrieval was not triggered
     else:
@@ -163,6 +163,6 @@ def evaluate_response(llm:AzureChatOpenAI, question:str, answer:str, context:lis
         "correctness": correctness_score,
         "retrieval": retrieval_score,
         "groundedness": groundedness_score,
-        "document_match": document_match
+        "document_match": document_match,
     }
     return results

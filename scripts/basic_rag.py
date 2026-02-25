@@ -9,8 +9,13 @@ from llm_utils import check_index_naming, generate_response
 load_dotenv()
 
 # before connecting to anything, check that the vector store fields are compatible with langchain
-index_client = SearchIndexClient(os.getenv("VECTOR_STORE_ENDPOINT"), AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")))
-vector_store_name_status = check_index_naming(index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX"))
+index_client = SearchIndexClient(
+    os.getenv("VECTOR_STORE_ENDPOINT"),
+    AzureKeyCredential(os.getenv("VECTOR_STORE_KEY")),
+)
+vector_store_name_status = check_index_naming(
+    index_client=index_client, index_name=os.getenv("VECTOR_STORE_INDEX")
+)
 if vector_store_name_status:
     print("Vector store is named correctly")
 else:
@@ -29,7 +34,7 @@ vector_store: AzureSearch = AzureSearch(
     azure_search_key=os.getenv("VECTOR_STORE_KEY"),
     index_name=os.getenv("VECTOR_STORE_INDEX"),
     embedding_function=embeddings.embed_query,
-    content_key="chunk"
+    content_key="chunk",
 )
 print("Vector store connected")
 
@@ -38,11 +43,11 @@ llm = AzureChatOpenAI(
     openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
+    temperature=0.0,
 )
 print("LLM connected")
 
-while 1<2:
+while 1 < 2:
     print("\n")
     user_input = input("What do you want to know?\n\n")
     print(generate_response(question=user_input, vector_store=vector_store, llm=llm))
