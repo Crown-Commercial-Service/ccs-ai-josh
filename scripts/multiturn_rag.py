@@ -1,4 +1,5 @@
 import os
+
 # Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
 # Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
@@ -23,7 +24,7 @@ vector_store: AzureSearch = AzureSearch(
     azure_search_key=os.getenv("VECTOR_STORE_KEY"),
     index_name=os.getenv("VECTOR_STORE_INDEX"),
     embedding_function=embeddings.embed_query,
-    content_key="chunk"
+    content_key="chunk",
 )
 print("Vector store connected")
 
@@ -32,7 +33,7 @@ llm = AzureChatOpenAI(
     openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
+    temperature=0.0,
 )
 print("LLM connected")
 
@@ -41,8 +42,8 @@ graph = build_graph(llm=llm, vector_store=vector_store)
 while True:
     user_input = input("What do you want to know?\n")
     response = answer_once(graph, user_input)
-    for i in range(len(response['source_contents'])):
+    for i in range(len(response["source_contents"])):
         print(f"###### Chunk {i+1} ######")
-        print(response['source_contents'][i])
-    print(response['source_names'])
-    print(response['answer'])
+        print(response["source_contents"][i])
+    print(response["source_names"])
+    print(response["answer"])

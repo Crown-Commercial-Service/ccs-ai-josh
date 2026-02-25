@@ -1,4 +1,5 @@
 import os
+
 # Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
 # Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
@@ -11,7 +12,7 @@ from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
 from azure.storage.blob import BlobServiceClient
-import io # Import the io module
+import io  # Import the io module
 
 st.set_page_config(layout="wide", page_title="AI Josh")
 
@@ -32,7 +33,7 @@ vector_store: AzureSearch = AzureSearch(
     azure_search_key=os.getenv("VECTOR_STORE_KEY"),
     index_name=os.getenv("VECTOR_STORE_INDEX"),
     embedding_function=embeddings.embed_query,
-    content_key="chunk"
+    content_key="chunk",
 )
 
 llm = AzureChatOpenAI(
@@ -40,7 +41,7 @@ llm = AzureChatOpenAI(
     openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0
+    temperature=0.0,
 )
 
 # Initialize graph in session state to preserve conversation context
@@ -49,8 +50,12 @@ if "graph" not in st.session_state:
 
 # Read CI_document_URLs.csv from Azure Blob Storage
 credential = DefaultAzureCredential()
-blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_URL'), credential=credential)
-container_client = blob_service_client.get_container_client(os.getenv("BLOB_CONFIG_CONTAINER"))
+blob_service_client = BlobServiceClient(
+    account_url=os.getenv("BLOB_URL"), credential=credential
+)
+container_client = blob_service_client.get_container_client(
+    os.getenv("BLOB_CONFIG_CONTAINER")
+)
 blob_client = container_client.get_blob_client("CI_document_URLs.csv")
 
 # Download the blob content and read it into a pandas DataFrame
@@ -80,16 +85,16 @@ if user_input := st.chat_input("How can I help?"):
 
     # Store message with sources if retrieval occurred
     message_data = {"role": "assistant", "content": output}
-    if len(response['source_names']) > 0:
-        message_data["sources"] = response['source_names']
+    if len(response["source_names"]) > 0:
+        message_data["sources"] = response["source_names"]
 
     st.session_state.messages.append(message_data)
 
     with st.chat_message("assistant"):
         st.markdown(output)
         # Add sources in an expander if retrieval occurred
-        if len(response['source_names']) > 0:
-            sources_content = format_sources(response['source_names'], CI_docs_URLs)
+        if len(response["source_names"]) > 0:
+            sources_content = format_sources(response["source_names"], CI_docs_URLs)
             if sources_content:
                 with st.expander("🔗 View Sources", expanded=False):
                     st.markdown(sources_content)
@@ -123,5 +128,5 @@ st.markdown(
          Disclaimer: AI-generated content may not always be accurate or up-to-date. Please verify critical information independently.
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
