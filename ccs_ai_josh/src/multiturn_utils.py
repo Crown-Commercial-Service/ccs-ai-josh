@@ -6,6 +6,7 @@ from langchain_core.documents.base import Document
 from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+from src.prompt_sanitiser import sanitise_input
 
 def query_or_respond(state: MessagesState, llm: Any, retrieve_tool: Any):
     "Generate tool call for retrieval, or respond directly"
@@ -47,7 +48,9 @@ def generate(state: MessagesState, llm: Any):
         "don't know. Use three sentences maximum and keep the"
         "answer concise."
         "\n\n"
+        "--- BEGIN RETRIEVED DOCUMENTS ---\n"
         f"{docs_content}"
+        "\n--- END RETRIEVED DOCUMENTS ---"
     )
     conversation_messages = [
         message
@@ -68,11 +71,17 @@ def stream_turn(
     """
     Stream a single user turn through the graph, yielding step values.
 
+    The raw user input is passed through :func:`~src.prompt_sanitiser.sanitise_input`
+    before being forwarded to the conversation graph.  A :class:`ValueError` is
+    raised (and should be caught by the caller) if the input contains a detected
+    prompt-injection or SQL-injection attempt.
+
     Yields the values dicts produced by graph.stream(...).
     """
+    sanitised = sanitise_input(user_input)
     config = {"configurable": {"thread_id": thread_id}}
     yield from graph.stream(
-        {"messages": [{"role": "user", "content": user_input}]},
+        {"messages": [{"role": "user", "content": sanitised}]},
         stream_mode=stream_mode,
         config=config,
     )

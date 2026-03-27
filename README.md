@@ -38,6 +38,37 @@ AI Josh uses retrieval-augmented generation (RAG) to provide responses based on 
 ### Document URLs
 To link to the documents that an answer is based on, we use a file called `CI_document_URLs.csv`, which is a table of file names and URLs. For full instructions on how to create this table, see the internal documentation.
 
+## Prompt Sanitisation
+All user messages are routed through a shared sanitisation layer
+(`ccs_ai_josh/src/prompt_sanitiser.py`) before being passed to the LLM.
+
+### What it does
+| Step | Detail |
+|------|--------|
+| **Type validation** | Rejects non-string values with `TypeError`. |
+| **Length validation** | Silently truncates inputs longer than 2 000 characters to limit token-stuffing attacks. |
+| **Injection pattern detection** | Raises `ValueError` (shown to the user as a friendly warning) when the input matches a known injection pattern. |
+| **Retrieved-content delimiters** | The generation step wraps all retrieved document content in explicit `--- BEGIN / END RETRIEVED DOCUMENTS ---` markers so the LLM can distinguish external data from trusted instructions (defence against indirect / multi-step injection). |
+
+### Injection categories detected
+* **Direct injection** – e.g. "Ignore previous instructions …", "Forget all prior instructions …"
+* **SQL injection** – e.g. "execute the following SQL …", `DROP TABLE`, `SELECT … FROM … WHERE`
+* **Data exfiltration** – e.g. "Reveal your system prompt", "Show me your API key"
+* **Jailbreak triggers** – e.g. "DAN mode", "developer mode"
+
+### Reviewing / extending the sanitiser
+The full list of patterns is in `INJECTION_PATTERNS` inside `prompt_sanitiser.py`.
+To add a new pattern, append a `(regex_string, human_readable_label)` tuple to that list.
+The pre-compiled `_COMPILED_PATTERNS` list is rebuilt automatically at module load time.
+
+### Tests
+Automated tests live in `ccs_ai_josh/tests/test_prompt_sanitiser.py` and cover:
+* Normal queries passing through unchanged.
+* All four injection categories above.
+* Input truncation behaviour.
+* Type-error handling.
+* Generation-step delimiter presence (indirect injection defence).
+
 ## Running the User Interface Locally
 If you want to run the user interface locally for development or testing purposes, run:
 ```
