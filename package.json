@@ -1,0 +1,27 @@
+{
+  "name": "ccs-ai-josh",
+  "version": "1.0.0",
+  "description": "An AI-powered assistant to answer questions about the contents of documents.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "govuk-frontend": "^6.1.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Crown-Commercial-Service/ccs-ai-josh.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Crown-Commercial-Service/ccs-ai-josh/issues"
+  },
+  "homepage": "https://github.com/Crown-Commercial-Service/ccs-ai-josh#readme"
+}
