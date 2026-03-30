@@ -15,6 +15,7 @@ from azure.storage.blob import BlobServiceClient
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
+from src.sanitise import sanitise_user_input, PromptInjectionError
 from Feedback.feedback_mechanism import FeedbackMechanism
 
 # --- INITIALIZATION ---
@@ -107,6 +108,31 @@ def home():
     if request.method == "POST":
         user_input = request.form.get("message")
         if user_input:
+            raw_input = user_input
+            # Sanitise input before passing to the LLM
+            try:
+                user_input = sanitise_user_input(user_input)
+            except PromptInjectionError:
+                session["messages"].append({"role": "user", "content": raw_input})
+                session["messages"].append(
+                    {
+                        "role": "assistant",
+                        "content": "Your message could not be processed because it appears to contain a prompt injection attempt. Please rephrase your question.",
+                    }
+                )
+                session.modified = True
+                return redirect(url_for("home"))
+            except ValueError:
+                session["messages"].append({"role": "user", "content": raw_input})
+                session["messages"].append(
+                    {
+                        "role": "assistant",
+                        "content": "Your message could not be processed. Please ensure it is non-empty and within the allowed length.",
+                    }
+                )
+                session.modified = True
+                return redirect(url_for("home"))
+
             # Add user message to session history
             session["messages"].append({"role": "user", "content": user_input})
 
