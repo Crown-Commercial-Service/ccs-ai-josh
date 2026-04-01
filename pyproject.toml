@@ -11,3 +11,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff.lint]
+# E402: Module level import not at top of file
+ignore = ["E402"]
