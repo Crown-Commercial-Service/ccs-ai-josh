@@ -1,6 +1,5 @@
 import os
 
-from dvc.testing.benchmarks.fixtures import project
 
 # Set environment variables for LangChain Azure Search integration
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
@@ -38,7 +37,9 @@ graphs = {}
 STORAGE_CONNECTION_STRING = os.getenv("STORAGE_CONNECTION_STRING")
 TABLE_NAME = os.getenv("TABLE_NAME")
 
-fbm = FeedbackMechanism(storage_connection_string=STORAGE_CONNECTION_STRING, table_name=TABLE_NAME)
+fbm = FeedbackMechanism(
+    storage_connection_string=STORAGE_CONNECTION_STRING, table_name=TABLE_NAME
+)
 
 # Configure Embeddings Model
 embeddings: AzureOpenAIEmbeddings = AzureOpenAIEmbeddings(
@@ -54,7 +55,7 @@ vector_store: AzureSearch = AzureSearch(
     azure_search_key=os.getenv("VECTOR_STORE_KEY"),
     index_name=os.getenv("VECTOR_STORE_INDEX"),
     embedding_function=embeddings.embed_query,
-    content_key="chunk"
+    content_key="chunk",
 )
 
 # Configure LLM
@@ -62,11 +63,9 @@ llm = AzureChatOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-
+    openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    temperature=0.0,
 )
-
-
 
 
 # Initialize the converter to convert source doc markdown to html
@@ -81,12 +80,18 @@ def home():
     #  Read CI document URLs from Azure Blob Storage to match links with names
     try:
         credential = DefaultAzureCredential()
-        blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_URL'), credential=credential)
-        container_client = blob_service_client.get_container_client(os.getenv("BLOB_CONFIG_CONTAINER"))
+        blob_service_client = BlobServiceClient(
+            account_url=os.getenv("BLOB_URL"), credential=credential
+        )
+        container_client = blob_service_client.get_container_client(
+            os.getenv("BLOB_CONFIG_CONTAINER")
+        )
         blob_client = container_client.get_blob_client("CI_document_URLs.csv")
         blob_data = blob_client.download_blob()
         CI_docs_URLs = pd.read_csv(io.BytesIO(blob_data.readall()))
-        CI_docs_URLs = CI_docs_URLs.rename(columns={"FileName": "File Name", "AzureURL": "File URL"})
+        CI_docs_URLs = CI_docs_URLs.rename(
+            columns={"FileName": "File Name", "AzureURL": "File URL"}
+        )
     except Exception as e:
         print(f"Error loading CSV from Blob Storage: {e}")
         CI_docs_URLs = pd.DataFrame()
@@ -115,7 +120,7 @@ def home():
 
 
         # Redirect to the same page with a GET request to show the updated chat
-        return redirect(url_for('home'))
+        return redirect(url_for("home"))
 
     #  Pull history from LangGraph MemorySaver
     formatted_history = []
@@ -211,7 +216,7 @@ def home():
 #     return render_template('index.html', messages=session.get('messages', []))
 
 
-@app.route('/feedback', methods=['POST'])
+@app.route("/feedback", methods=["POST"])
 def log_feedback():
     """Receives feedback data from the client-side JavaScript."""
 
@@ -221,36 +226,37 @@ def log_feedback():
     data = request.get_json()
 
     # The four required values are now in the 'data' dictionary:
-    thumbs_up_selected = data.get('thumbs_up_selected')
-    assistant_content = data.get('assistant_content')
-    user_content = data.get('user_content')
-    feedback_text = data.get('feedback_text')  # This will be "no feedback" as requested
+    thumbs_up_selected = data.get("thumbs_up_selected")
+    assistant_content = data.get("assistant_content")
+    user_content = data.get("user_content")
+    feedback_text = data.get("feedback_text")  # This will be "no feedback" as requested
     project_name = "AI-Josh"
     ai_model = os.getenv("DEPLOYMENT_NAME")
-
 
     # --- LOGGING/STORAGE LOGIC GOES HERE ---
     fbm.store_feedback(
         project_name=project_name,
         ai_model=ai_model,
         ai_response=assistant_content,
-        user_query= user_content,
+        user_query=user_content,
         feedback_about_response=feedback_text,
-        thumbs= thumbs_up_selected
+        thumbs=thumbs_up_selected,
     )
 
-
     # Return a success message to the JavaScript
-    return jsonify({
-        "status": "success",
-        "message": "Feedback logged",
-        "data_received": {
-            "thumbs_up": thumbs_up_selected,
-            "ai_content": assistant_content,
-            "user_content": user_content,
-            "text": feedback_text
+    return jsonify(
+        {
+            "status": "success",
+            "message": "Feedback logged",
+            "data_received": {
+                "thumbs_up": thumbs_up_selected,
+                "ai_content": assistant_content,
+                "user_content": user_content,
+                "text": feedback_text,
+            },
         }
-    }), 200
+    ), 200
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(debug=True)

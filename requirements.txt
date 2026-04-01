@@ -166,7 +166,7 @@ Pygments==2.19.2
 pygtrie==2.5.0
 PyJWT==2.10.1
 pyparsing==3.2.5
-pytest==8.4.2
+pytest
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-json-logger==4.0.0
@@ -227,3 +227,4 @@ xxhash==3.6.0
 yarl==1.22.0
 zc.lockfile==4.0
 zstandard==0.23.0
+ruff

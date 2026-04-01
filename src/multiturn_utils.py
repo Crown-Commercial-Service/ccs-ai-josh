@@ -1,11 +1,12 @@
 from typing import Any, Iterator, Dict
-from functools import partial, wraps, WRAPPER_ASSIGNMENTS
+from functools import partial
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
 from langchain_core.documents.base import Document
 from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+
 
 def query_or_respond(state: MessagesState, llm: Any, retrieve_tool: Any):
     "Generate tool call for retrieval, or respond directly"
@@ -14,8 +15,10 @@ def query_or_respond(state: MessagesState, llm: Any, retrieve_tool: Any):
     # the response will contain the most recent response and the previous responses
     return {"messages": [response]}
 
+
 def create_bound_retrieve_tool(vector_store):
     """Create a properly decorated retrieve tool bound to a specific vector store"""
+
     @tool(response_format="content_and_artifact")
     def retrieve_bound(query: str):
         """Retrieve information related to a query"""
@@ -25,7 +28,9 @@ def create_bound_retrieve_tool(vector_store):
             for doc in retrieved_docs
         )
         return serialized, retrieved_docs
+
     return retrieve_bound
+
 
 def generate(state: MessagesState, llm: Any):
     """Generate answer"""
@@ -65,6 +70,7 @@ def generate(state: MessagesState, llm: Any):
     response.additional_kwargs["source_names"] = list(set(source_names))
     return {"messages": [response]}
 
+
 def stream_turn(
     graph,
     user_input: str,
@@ -82,6 +88,7 @@ def stream_turn(
         stream_mode=stream_mode,
         config=config,
     )
+
 
 def answer_once(
     graph,
@@ -147,7 +154,7 @@ def answer_once(
                     # Check if the artifact is a langchain_core.documents.base.Document object (retrieval did occur), or a dict (retrieval didn't occur)
                     if isinstance(doc, Document):
                         # retrieval did occur, so return the doc names and contents
-                        source_names.append(doc.metadata['title'])
+                        source_names.append(doc.metadata["title"])
                         source_contents.append(doc.page_content)
                     # Skip non-Document objects without clearing existing sources
         else:
@@ -157,14 +164,15 @@ def answer_once(
     response = {
         "answer": last_ai_content,
         "source_names": source_names,
-        "source_contents": source_contents
+        "source_contents": source_contents,
     }
     return response
+
 
 def build_graph(llm, vector_store):
     # create a properly decorated tool bound to the vector store
     retrieve_bound = create_bound_retrieve_tool(vector_store)
-    
+
     # bind llm and retrieve_tool into the nodes that need them
     query_node = partial(query_or_respond, llm=llm, retrieve_tool=retrieve_bound)
     generate_node = partial(generate, llm=llm)
@@ -178,16 +186,15 @@ def build_graph(llm, vector_store):
 
     graph_builder.set_entry_point("query_or_respond")
     graph_builder.add_conditional_edges(
-        "query_or_respond",
-        tools_condition,
-        {END: END, "tools": "tools"}
+        "query_or_respond", tools_condition, {END: END, "tools": "tools"}
     )
     graph_builder.add_edge("tools", "generate")
     graph_builder.add_edge("generate", END)
 
-    memory = MemorySaver() # for in-memory state handling
+    memory = MemorySaver()  # for in-memory state handling
     graph = graph_builder.compile(checkpointer=memory)
     return graph
+
 
 def format_sources(source_names, CI_docs_URLs):
     """Format source documents into links and create expander content"""
@@ -200,10 +207,10 @@ def format_sources(source_names, CI_docs_URLs):
 
     for source_name in unique_sources:
         # Convert file name to links to docs
-        doc_row = CI_docs_URLs[CI_docs_URLs['File Name']==source_name]
+        doc_row = CI_docs_URLs[CI_docs_URLs["File Name"] == source_name]
         # if the file is in the CI Docs URLs table, add a hyperlink
         if doc_row.shape[0] > 0:
-            doc_URL = doc_row.iloc[0,:]['File URL']
+            doc_URL = doc_row.iloc[0, :]["File URL"]
             source_links.append(f"[{source_name}]({doc_URL})")
         # if the file is missing from the CI Docs URLs table, just add a name
         else:
@@ -212,6 +219,8 @@ def format_sources(source_names, CI_docs_URLs):
     # Create formatted source block for expander
     sources_content = f"**Most Relevant Document:**\n- {source_links[0]}"
     if len(source_links) > 1:
-        sources_content += f"\n\n**Other Related Documents:**\n" + "\n".join(f"- {link}" for link in source_links[1:])
+        sources_content += "\n\n**Other Related Documents:**\n" + "\n".join(
+            f"- {link}" for link in source_links[1:]
+        )
 
     return sources_content
