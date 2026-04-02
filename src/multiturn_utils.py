@@ -36,9 +36,14 @@ def generate(state: MessagesState, llm: Any):
     """Generate answer"""
     # capture the most recent tool messages
     recent_tool_messages = []
+    source_names = []
     for message in reversed(state["messages"]):
         if message.type == "tool":
             recent_tool_messages.append(message)
+            if hasattr(message, "artifact") and message.artifact:
+                for doc in message.artifact:
+                    if hasattr(doc, 'metadata'):
+                        source_names.append(doc.metadata.get('title'))
         else:
             break
     # put the recent tool messages into their original order
@@ -62,6 +67,7 @@ def generate(state: MessagesState, llm: Any):
     ]
     prompt = [SystemMessage(system_message_content)] + conversation_messages
     response = llm.invoke(prompt)
+    response.additional_kwargs["source_names"] = list(set(source_names))
     return {"messages": [response]}
 
 
