@@ -11,6 +11,7 @@ from azure.identity import DefaultAzureCredential
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
+from src.sanitise import sanitise_user_input, PromptInjectionError
 from azure.storage.blob import BlobServiceClient
 import io  # Import the io module
 
@@ -80,24 +81,37 @@ if user_input := st.chat_input("How can I help?"):
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    response = answer_once(st.session_state.graph, user_input)
-    output = response["answer"]
+    try:
+        clean_input = sanitise_user_input(user_input)
+    except PromptInjectionError:
+        error_msg = "Your message could not be processed because it appears to contain a prompt injection attempt. Please rephrase your question."
+        st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        with st.chat_message("assistant"):
+            st.markdown(error_msg)
+    except ValueError:
+        error_msg = "Your message could not be processed. Please ensure it is non-empty and within the allowed length."
+        st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        with st.chat_message("assistant"):
+            st.markdown(error_msg)
+    else:
+        response = answer_once(st.session_state.graph, clean_input)
+        output = response["answer"]
 
-    # Store message with sources if retrieval occurred
-    message_data = {"role": "assistant", "content": output}
-    if len(response["source_names"]) > 0:
-        message_data["sources"] = response["source_names"]
-
-    st.session_state.messages.append(message_data)
-
-    with st.chat_message("assistant"):
-        st.markdown(output)
-        # Add sources in an expander if retrieval occurred
+        # Store message with sources if retrieval occurred
+        message_data = {"role": "assistant", "content": output}
         if len(response["source_names"]) > 0:
-            sources_content = format_sources(response["source_names"], CI_docs_URLs)
-            if sources_content:
-                with st.expander("🔗 View Sources", expanded=False):
-                    st.markdown(sources_content)
+            message_data["sources"] = response["source_names"]
+
+        st.session_state.messages.append(message_data)
+
+        with st.chat_message("assistant"):
+            st.markdown(output)
+            # Add sources in an expander if retrieval occurred
+            if len(response["source_names"]) > 0:
+                sources_content = format_sources(response["source_names"], CI_docs_URLs)
+                if sources_content:
+                    with st.expander("🔗 View Sources", expanded=False):
+                        st.markdown(sources_content)
 
 # Add fixed disclaimer at the bottom
 st.markdown(
