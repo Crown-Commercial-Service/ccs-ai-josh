@@ -69,7 +69,6 @@
                 An AI system to answer questions about Commercial Intelligence documents.
             </p>
 
-            <div class="app-chat-window" id="chat-window">
             {% if sanitisation_error %}
                 <div class="govuk-notification-banner govuk-notification-banner--alert" role="alert" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
                     <div class="govuk-notification-banner__header">
@@ -80,6 +79,8 @@
                     </div>
                 </div>
             {% endif %}
+
+            <div class="app-chat-window" id="chat-window">
             {% for message in messages %}
                 <div class="chat-message {{ message.role }}" data-message-index="{{ loop.index0 }}">
                     <div class="message-content govuk-body">
