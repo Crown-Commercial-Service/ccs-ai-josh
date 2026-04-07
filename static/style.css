@@ -1,302 +1,165 @@
-body {
-    /* Keep existing styles, but add margin: 0 to ensure no default spacing */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f0f2f6;
-    margin: 0; /* Add this to prevent browser default margin from interfering */
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #333;
-    overflow: hidden; /* Optional: Prevent body scroll when the app fills the viewport */
+.govuk-template__body {
+    margin: 0;
+    background: #f3f2f1;
 }
 
-.container {
+.app-main {
+    min-height: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.app-container {
     width: 100%;
-    height: 100vh; /* Use 100vh to fill viewport height */
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    /* Remove padding-bottom if disclaimer is outside the container */
-    /* padding-bottom: 40px; */
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1rem 1.25rem;
+    background: #fff;
+    border: 1px solid #b1b4b6;
+    box-sizing: border-box;
 }
 
-header {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid #ddd;
-    background-color: #fafafa;
-    /* Ensure header doesn't grow */
-    flex-shrink: 0;
-}
-
-.chat-window {
-    flex-grow: 1;
-    padding: 1rem;
+.app-chat-window {
+    height: 58vh;
+    min-height: 420px;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #b1b4b6;
+    background: #f8f8f8;
+    margin-bottom: 1rem;
 }
 
 .chat-message {
     display: flex;
-    max-width: 80%;
+    margin-bottom: 0.75rem;
 }
 
 .chat-message.user {
-    align-self: flex-end;
+    justify-content: flex-end;
 }
 
 .chat-message.assistant {
-    align-self: flex-start;
+    justify-content: flex-start;
 }
 
 .message-content {
-    padding: 0.75rem 1rem;
-    border-radius: 18px;
-    line-height: 1.5;
+    max-width: min(80ch, 82%);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
 }
 
 .chat-message.user .message-content {
-    background-color: #007bff;
-    color: white;
-    border-bottom-right-radius: 4px;
+    background: #1d70b8;
+    color: #fff;
 }
 
 .chat-message.assistant .message-content {
-    background-color: #e9ecef;
-    color: #333;
-    border-bottom-left-radius: 4px;
+    background: #fff;
+    border: 1px solid #d8d8d8;
 }
 
-.chat-message.assistant.loading .message-content::after {
-    content: '...';
-    display: inline-block;
-    animation: dots 1.4s infinite;
+.chat-message.user .message-content a {
+    color: #fff;
 }
 
-@keyframes dots {
-    0%, 20% { content: '.'; }
-    40% { content: '..'; }
-    60% { content: '...'; }
+.app-message-text > *:last-child {
+    margin-bottom: 0;
 }
 
-
-.input-form {
-    flex-shrink: 0; /* Prevent form from growing */
+.app-input-form {
     display: flex;
-    padding: 1rem;
-    border-top: 1px solid #ddd;
-    background-color: #fafafa;
-    /* Ensure the form stays at the bottom */
-    margin-top: auto;
-    /* Use flexbox to align items horizontally */
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.app-form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.feedback-controls {
+    margin-top: 0.8rem;
+    display: flex;
     align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
 }
 
-.input-form input[type="text"] {
-    flex-grow: 1; /* Allow input to grow and take available space */
-    padding: 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 20px;
-    margin-right: 0.5rem;
-    font-size: 1rem;
+.feedback-label {
+    margin-bottom: 0;
+    margin-right: 0.15rem;
 }
 
-.input-form button {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    background-color: #007bff;
-    color: white;
-    border-radius: 20px;
+.feedback-btn {
+    border: 1px solid #b1b4b6;
+    background: #fff;
+    border-radius: 4px;
+    padding: 0.2rem 0.45rem;
     cursor: pointer;
     font-size: 1rem;
-    transition: background-color 0.2s;
-}
-
-.input-form button:hover {
-    background-color: #0056b3;
-}
-
-.disclaimer {
-    flex-shrink: 0;
-    color: #666;
-    text-align: center;
-    padding: 5px 0;
-    font-size: 0.8rem;
-    background-color: #fafafa; /* Match the form background */
-    border-top: 1px solid #ddd; /* Add a border similar to the form */
-}
-
-/* Sources Expander */
-.sources-expander {
-    margin-top: 10px;
-    border-top: 1px solid #dcdcdc;
-    padding-top: 10px;
-    font-size: 0.9em;
-}
-
-.sources-expander summary {
-    cursor: pointer;
-    font-weight: 500;
-    color: #0056b3;
-}
-
-.sources-content {
-    margin-top: 8px;
-    padding-left: 10px;
-    border-left: 2px solid #007bff;
-}
-
-.sources-content a {
-    color: #0056b3;
-}
-feedback-btn {
-    /* Remove default button styling */
-    background-color: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-size: 1.5rem; /* Equivalent to 'text-xl' from the HTML */
-    line-height: 1; /* Helps center the emoji/icon */
-    transition: transform 0.1s ease;
-    /* Optional: Ensure text color doesn't interfere, using transparent color for emoji/icon */
-    color: transparent;
-    outline: none;
+    line-height: 1;
 }
 
 .feedback-btn:hover {
-    /* Add a slight effect on hover to show interactivity */
-    transform: scale(1.1);
+    background: #f3f2f1;
 }
 
-/* Style for the label next to the buttons */
-.feedback-label {
-    /* Adjust text properties to match the 'text-xs text-gray-500' HTML classes */
-    font-size: 0.75rem; /* text-xs */
-    color: #6b7280; /* text-gray-500 */
-}
-
-/* Style for the container to manage spacing and layout */
-.feedback-controls {
-    /* Matches 'mt-4 flex items-center space-x-2' in the HTML */
-    margin-top: 1rem; /* mt-4 (adjust if your base is different) */
-    display: flex;
-    align-items: center;
-    gap: 0.5rem; /* space-x-2 */
-}
-
-/* Styles for when a button is clicked (disabled) */
-.feedback-btn[disabled] {
-    opacity: 0.5;
-    cursor: default;
-    transform: none; /* remove hover effect when disabled */
-}
 .feedback-selected {
-    /* Example: Make the emoji pop with a shadow */
-    filter: drop-shadow(0 0 5px #007bff); /* A subtle blue glow, adjust color as desired */
-    transform: scale(1.15); /* Make it a bit bigger than the hover state */
+    border-color: #1d70b8;
+    box-shadow: 0 0 0 2px #1d70b8;
 }
 
-/* Optional: Adjust neutral/unselected state to be more subtle */
-.feedback-btn:not(.feedback-selected) {
-    opacity: 0.6; /* Unselected buttons are slightly faded */
+.sources-expander {
+    margin-top: 0.75rem;
 }
 
-.feedback-btn:not(.feedback-selected):hover {
-    opacity: 1; /* Restore opacity on hover for unselected buttons */
+.sources-content a {
+    word-break: break-word;
 }
 
-/* Ensure selected button doesn't have a hover effect */
-.feedback-selected:hover {
-    transform: scale(1.15); /* Keep the selected scale */
-    filter: drop-shadow(0 0 5px #007bff); /* Keep the glow */
-}
-
-/* Modal Header/Instruction */
-.modal-content h2 {
-    margin-top: 0;
-    font-size: 1.5em;
-    width: 90%;
-    max-width: 500px;
-    color: #333;
-    text-align: center;
-}
-
-.modal-instruction {
-    text-align: center;
-    color: #666;
-    margin-bottom: 15px;
-}
-
-/* Textarea */
-#feedback-textbox {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    box-sizing: border-box; /* Include padding and border in the total size */
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    resize: vertical;
-    font-size: 1rem;
-    font-family: inherit;
-}
-
-/* Modal Buttons */
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.modal-btn {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 20px; /* Matching the input form buttons */
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.2s;
-    font-size: 1rem;
-}
-
-.modal-btn.submit {
-    background-color: #007bff;
-    color: white;
-}
-
-.modal-btn.submit:hover {
-    background-color: #0056b3;
-}
-
-.modal-btn.cancel {
-    background-color: #e9ecef;
-    color: #333;
-    border: 1px solid #ddd;
-}
-
-.modal-btn.cancel:hover {
-    background-color: #ddd;
+.disclaimer {
+    margin: 0.75rem 0 0;
 }
 
 .modal-overlay {
-    position: fixed; /* This is correct for full-screen overlay */
+    position: fixed;
     z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100vw; /* Use 100vw to ensure it covers the entire viewport width */
-    height: 100vh; /* Use 100vh to ensure it covers the entire viewport height */
-    background-color: rgba(0,0,0,0.5);
+    inset: 0;
+    background-color: rgba(11, 12, 12, 0.5);
     display: flex;
-    align-items: center; /* This centers the content vertically */
-    justify-content: center; /* This centers the content horizontally */
+    align-items: center;
+    justify-content: center;
     overflow: auto;
+    padding: 1rem;
 }
-/* Animation for the modal */
-@keyframes animatetop {
-    from { opacity: 0; transform: translateY(-50px); }
-    to { opacity: 1; transform: translateY(0); }
+
+.modal-content {
+    background: #fff;
+    border: 2px solid #0b0c0c;
+    width: min(680px, 100%);
+    padding: 1.25rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+    .app-chat-window {
+        min-height: 300px;
+        height: 50vh;
+        padding: 0.75rem;
+    }
+
+    .message-content {
+        max-width: 92%;
+    }
+
+    .app-input-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
