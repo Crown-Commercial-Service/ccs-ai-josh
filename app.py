@@ -62,7 +62,7 @@ vector_store: AzureSearch = AzureSearch(
 # Configure LLM
 llm = AzureChatOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
+    api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     temperature=0.0,
@@ -75,10 +75,10 @@ md = MarkdownIt()
 # --- FLASK ROUTE ---
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    """Handles both displaying the chat and processing new messages."""
-    # Read CI document URLs from Azure Blob Storage
+    """Handles both displaying the chat and processing new messages via LangGraph."""
+    #  Read CI document URLs from Azure Blob Storage to match links with names
     try:
         credential = DefaultAzureCredential()
         blob_service_client = BlobServiceClient(
@@ -95,80 +95,83 @@ def home():
         )
     except Exception as e:
         print(f"Error loading CSV from Blob Storage: {e}")
-        CI_docs_URLs = pd.DataFrame()  # Create an empty DataFrame on failure
+        CI_docs_URLs = pd.DataFrame()
 
-    # Create a unique session ID for the user if it doesn't exist
-    if "user_id" not in session:
-        session["user_id"] = str(uuid.uuid4())
-        session["messages"] = []
+    # Identify the user (Thread/sessopm ID) - NO more 'messages' in session which caused last error
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
 
-    user_id = session["user_id"]
+    user_id = session['user_id']
+    config = {"configurable": {"thread_id": user_id}}
 
-    # POST: This block runs when the user sends a message
-    if request.method == "POST":
-        user_input = request.form.get("message")
+    #  POST: This block runs when the user sends a message
+    if request.method == 'POST':
+        user_input = request.form.get('message')
         if user_input:
-            raw_input = user_input
             # Sanitise input before passing to the LLM
             try:
                 user_input = sanitise_user_input(user_input)
             except PromptInjectionError:
-                session["messages"].append({"role": "user", "content": raw_input})
-                session["messages"].append(
-                    {
-                        "role": "assistant",
-                        "content": "Your message could not be processed because it appears to contain a prompt injection attempt. Please rephrase your question.",
-                    }
+                session['sanitisation_error'] = (
+                    "Your message could not be processed because it appears to "
+                    "contain a prompt injection attempt. Please rephrase your question."
                 )
                 session.modified = True
                 return redirect(url_for("home"))
             except ValueError:
-                session["messages"].append({"role": "user", "content": raw_input})
-                session["messages"].append(
-                    {
-                        "role": "assistant",
-                        "content": "Your message could not be processed. Please ensure it is non-empty and within the allowed length.",
-                    }
+                session['sanitisation_error'] = (
+                    "Your message could not be processed. Please ensure it is "
+                    "non-empty and within the allowed length."
                 )
                 session.modified = True
                 return redirect(url_for("home"))
 
-            # Add user message to session history
-            session["messages"].append({"role": "user", "content": user_input})
-
             # Get or create the langgraph for the current user
             if user_id not in graphs:
                 graphs[user_id] = build_graph(llm=llm, vector_store=vector_store)
+
             graph = graphs[user_id]
 
-            # Get response from the langgraph
-            response = answer_once(graph, user_input)
-            output = md.render(response["answer"])
+            # Get response from the langgraph - messages saves history to MemorySaver automatically
+            # answer_once should handle the tool calls and saving
+            response = answer_once(graph, user_input, thread_id=user_id)
+            print(f"Graph processed response: {response}")
 
-            # Format sources if they exist
-            sources_content = ""
-            if response.get("source_names") and not CI_docs_URLs.empty:
-                sources_content = format_sources(response["source_names"], CI_docs_URLs)
-                sources_content_html = md.render(sources_content)
-                assistant_message = {
-                    "role": "assistant",
-                    "content": output,
-                    "sources": sources_content_html,
-                }
-            else:
-                assistant_message = {"role": "assistant", "content": output}
-            # Add assistant response to session history
-            session["messages"].append(assistant_message)
-
-            # Ensure the session is saved
-            session.modified = True
 
         # Redirect to the same page with a GET request to show the updated chat
         return redirect(url_for("home"))
 
-    # GET: This block runs on initial page load or after the redirect
-    # It simply renders the page with the full message history
-    return render_template("index.html", messages=session.get("messages", []))
+    #  Pull history from LangGraph MemorySaver
+    formatted_history = []
+    if user_id in graphs:
+        graph = graphs[user_id]
+        state = graph.get_state(config)
+        graph_messages = state.values.get("messages", [])
+
+        for msg in graph_messages:
+            role = "user" if msg.type == "human" else "assistant"
+
+            if msg.content and msg.type in ("human", "ai"):
+                # Initialize message data for the UI
+                msg_data = {
+                    "role": role,
+                    "content": md.render(msg.content),
+                    "sources": ""  # Default empty
+                }
+
+                # If it's the assistant, check the "Backpack" for sources
+                if role == "assistant":
+                    # Looks for source_names saved in your generate node
+                    source_names = msg.additional_kwargs.get("source_names", [])
+
+                    if source_names and not CI_docs_URLs.empty:
+                        # Format and render sources to HTML
+                        raw_sources = format_sources(source_names, CI_docs_URLs)
+                        msg_data["sources"] = md.render(raw_sources)
+
+                formatted_history.append(msg_data)
+
+    return render_template('index.html', messages=formatted_history, sanitisation_error=session.pop('sanitisation_error', None))
 
 
 @app.route("/feedback", methods=["POST"])
