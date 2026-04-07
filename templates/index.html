@@ -69,6 +69,17 @@
                 An AI system to answer questions about Commercial Intelligence documents.
             </p>
 
+            {% if sanitisation_error %}
+                <div class="govuk-notification-banner govuk-notification-banner--alert" role="alert" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">There is a problem</h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-body">{{ sanitisation_error }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
             <div class="app-chat-window" id="chat-window">
             {% for message in messages %}
                 <div class="chat-message {{ message.role }}" data-message-index="{{ loop.index0 }}">

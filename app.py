@@ -15,6 +15,7 @@ from azure.storage.blob import BlobServiceClient
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
+from src.sanitise import sanitise_user_input, PromptInjectionError
 from Feedback.feedback_mechanism import FeedbackMechanism
 
 # --- INITIALIZATION ---
@@ -107,6 +108,24 @@ def home():
     if request.method == 'POST':
         user_input = request.form.get('message')
         if user_input:
+            # Sanitise input before passing to the LLM
+            try:
+                user_input = sanitise_user_input(user_input)
+            except PromptInjectionError:
+                session['sanitisation_error'] = (
+                    "Your message could not be processed because it appears to "
+                    "contain a prompt injection attempt. Please rephrase your question."
+                )
+                session.modified = True
+                return redirect(url_for("home"))
+            except ValueError:
+                session['sanitisation_error'] = (
+                    "Your message could not be processed. Please ensure it is "
+                    "non-empty and within the allowed length."
+                )
+                session.modified = True
+                return redirect(url_for("home"))
+
             # Get or create the langgraph for the current user
             if user_id not in graphs:
                 graphs[user_id] = build_graph(llm=llm, vector_store=vector_store)
@@ -152,7 +171,7 @@ def home():
 
                 formatted_history.append(msg_data)
 
-    return render_template('index.html', messages=formatted_history)
+    return render_template('index.html', messages=formatted_history, sanitisation_error=session.pop('sanitisation_error', None))
 
 
 @app.route("/feedback", methods=["POST"])
