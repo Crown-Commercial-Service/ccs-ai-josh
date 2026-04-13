@@ -5,7 +5,6 @@ from langchain_core.messages import SystemMessage
 from langchain_core.documents.base import Document
 from langgraph.graph import MessagesState, StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
-from langgraph.checkpoint.memory import MemorySaver
 from src.sanitise import sanitise_retrieved_content
 
 
