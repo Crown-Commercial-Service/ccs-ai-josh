@@ -171,7 +171,7 @@ def answer_once(
     return response
 
 
-def build_graph(llm, vector_store):
+def build_graph(llm, vector_store, checkpointer):
     # create a properly decorated tool bound to the vector store
     retrieve_bound = create_bound_retrieve_tool(vector_store)
 
@@ -193,8 +193,7 @@ def build_graph(llm, vector_store):
     graph_builder.add_edge("tools", "generate")
     graph_builder.add_edge("generate", END)
 
-    memory = MemorySaver()  # for in-memory state handling
-    graph = graph_builder.compile(checkpointer=memory)
+    graph = graph_builder.compile(checkpointer=checkpointer)
     return graph
 
 

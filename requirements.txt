@@ -228,3 +228,4 @@ yarl==1.22.0
 zc.lockfile==4.0
 zstandard==0.23.0
 ruff
+langgraph-checkpoint-cosmosdb

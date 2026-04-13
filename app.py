@@ -17,6 +17,7 @@ from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from src.multiturn_utils import build_graph, answer_once, format_sources
 from src.sanitise import sanitise_user_input, PromptInjectionError
 from Feedback.feedback_mechanism import FeedbackMechanism
+from langgraph_checkpoint_cosmosdb import CosmosDBSaver
 
 # --- INITIALIZATION ---
 
@@ -71,6 +72,12 @@ llm = AzureChatOpenAI(
 
 # Initialize the converter to convert source doc markdown to html
 md = MarkdownIt()
+
+COSMOS_DB_NAME = os.getenv("COSMOS_DB_NAME")
+COSMOS_CONTAINER_NAME = os.getenv("COSMOS_CONTAINER_NAME")
+checkpointer = CosmosDBSaver(
+    database_name=COSMOS_DB_NAME, container_name=COSMOS_CONTAINER_NAME
+)
 
 # --- FLASK ROUTE ---
 
@@ -128,7 +135,7 @@ def home():
 
             # Get or create the langgraph for the current user
             if user_id not in graphs:
-                graphs[user_id] = build_graph(llm=llm, vector_store=vector_store)
+                graphs[user_id] = build_graph(llm=llm, vector_store=vector_store, checkpointer=checkpointer)
 
             graph = graphs[user_id]
 
