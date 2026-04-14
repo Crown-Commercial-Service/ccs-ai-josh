@@ -35,6 +35,52 @@ An AI-powered assistant to answer questions about the contents of documents.
     ```
 Note that these tests require an internet connection to run, because they call an LLM.
 
+## .env File Values
+
+To run `app.py`, you must create a `.env` file in the root directory and populate it with the following variables from your Azure resources and external integrations.
+
+### Azure AI Search
+| Variable | Description |
+| :--- | :--- |
+| **`VECTOR_STORE_ENDPOINT`** | The URL of your Azure AI Search service (e.g., `https://<service-name>.search.windows.net`). |
+| **`VECTOR_STORE_KEY`** | The Admin API Key for your Search service instance. |
+| **`VECTOR_STORE_INDEX`** | The name of the specific index used for vector data. |
+
+### Azure OpenAI
+| Variable | Description |
+| :--- | :--- |
+| **`AZURE_OPENAI_ENDPOINT`** | Your Azure OpenAI resource endpoint URL. |
+| **`AZURE_OPENAI_KEY`** | The API key for your Azure OpenAI resource. |
+| **`AZURE_OPENAI_API_VERSION`** | The API version used for requests (e.g., `2024-02-15-preview`). |
+| **`DEPLOYMENT_NAME`** | The custom name assigned to your LLM deployment (e.g., `gpt-4`). |
+| **`EMBEDDING_DEPLOYMENT_NAME`** | The deployment name for your embedding model (e.g., `text-embedding-3-small`). |
+| **`EMBEDDING_MODEL_ENDPOINT`** | Specific endpoint for the embedding model (often matches the primary endpoint). |
+| **`EMBEDDING_MODEL_KEY`** | The API key specifically for the embedding service. |
+
+### Azure Storage
+| Variable | Description                                                                |
+| :--- |:---------------------------------------------------------------------------|
+| **`BLOB_URL`** | The base URL for your Azure Blob Storage account.                          |
+| **`BLOB_CONFIG_CONTAINER`** | The name of the container where application configuration files reside.    |
+| **`STORAGE_CONNECTION_STRING`** | The full connection string used to authenticate with your CosmoDB account. |
+| **`TABLE_NAME`** | The name of the Azure Cosmodb to store user feedback from chatbot          |
+
+### Azure Cosmos DB
+| Variable | Description |
+| :--- | :--- |
+| **`COSMOSDB_ENDPOINT`** | The URI/Endpoint for your Cosmos DB account. |
+| **`COSMOSDB_KEY`** | The primary or secondary key for your Cosmos DB instance. |
+| **`COSMOS_DB_NAME`** | The unique name of the database within your Cosmos DB account. |
+| **`COSMOS_CONTAINER_NAME`** | The specific container name used for storing application state or chat history. |
+
+### External Integrations(not necessary app.py)
+| Variable | Description |
+| :--- | :--- |
+| **`KAHOOTZ_ENDPOINT`** | The API endpoint for your Kahootz workspace. |
+| **`KAHOOTZ_EMAIL`** | The email address authorized for Kahootz API access. |
+| **`KAHOOTZ_KEY`** | Your unique Kahootz API access key. |
+| **`KAHOOTZ_GROUP`** | The specific Group ID or name within Kahootz required for this integration. |
+
 ## Prompt Sanitisation
 
 All user-facing text inputs that are passed to the LLM are routed through the
