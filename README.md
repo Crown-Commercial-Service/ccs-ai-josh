@@ -73,7 +73,7 @@ To run `app.py`, you must create a `.env` file in the root directory and populat
 | **`COSMOS_DB_NAME`** | The unique name of the database within your Cosmos DB account. |
 | **`COSMOS_CONTAINER_NAME`** | The specific container name used for storing application state or chat history. |
 
-### External Integrations(not necessary app.py)
+### External Integrations(not necessary for app.py)
 | Variable | Description |
 | :--- | :--- |
 | **`KAHOOTZ_ENDPOINT`** | The API endpoint for your Kahootz workspace. |
