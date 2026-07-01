@@ -1,0 +1,19 @@
+{
+  "suppliers": [
+    "ACCENTURE (UK) LIMITED",
+    "BAE SYSTEMS APPLIED INTELLIGENCE LIMITED",
+    "MICROSOFT IRELAND OPERATIONS LIMITED"
+  ],
+  "frameworks": [
+    "RM6100",
+    "RM6335",
+    "RM6263",
+    "RM6221",
+    "RM1043.8",
+    "RM6187",
+    "RM3804",
+    "RM1557.13",
+    "RM3764.3",
+    "RM6193"
+  ]
+}

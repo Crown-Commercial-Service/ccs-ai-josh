@@ -95,6 +95,7 @@ def answer_once(
     graph,
     user_input: str,
     thread_id: str = "abc123",
+    state_pre_updated: bool = False
 ):
     """
     Run one turn and return both the final AI answer and the retrieved context.
@@ -106,7 +107,7 @@ def answer_once(
     """
     last_ai_content = ""
     final_messages = []
-
+    graph_input = None if state_pre_updated else user_input
     for step in stream_turn(graph, user_input, thread_id):
         # in case there have been no messages yet, use `get` to pass a default value (empty list)
         messages = step.get("messages", [])

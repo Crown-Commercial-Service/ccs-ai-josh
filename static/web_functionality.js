@@ -164,3 +164,51 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = 'none';
     });
 });
+
+// --- 🌟 INSERTED START: CSV Download Engine for Database Tables ---
+    const csvDownloadButtons = document.querySelectorAll('.js-csv-download-btn');
+
+    csvDownloadButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            try {
+                const rawJsonAttr = event.currentTarget.getAttribute('data-table-json');
+                const tableDataArray = JSON.parse(rawJsonAttr);
+
+                if (!tableDataArray || !tableDataArray.length) return;
+
+                const columnHeaders = Object.keys(tableDataArray[0]);
+                const csvDataLines = [columnHeaders.join(',')];
+
+                for (const rowItem of tableDataArray) {
+                    const rowCells = columnHeaders.map(header => {
+                        let cellValue = rowItem[header] === null || rowItem[header] === undefined ? '' : String(rowItem[header]);
+
+                        // Sanitize string content and escape quotes for standard CSV syntax compliance
+                        cellValue = cellValue.replace(/"/g, '""');
+                        if (cellValue.includes(',') || cellValue.includes('\n') || cellValue.includes('"')) {
+                            cellValue = `"${cellValue}"`;
+                        }
+                        return cellValue;
+                    });
+                    csvDataLines.push(rowCells.join(','));
+                }
+
+                // Fire safe transient attachment download bridge frame right inside browser memory
+                const blobStream = new Blob([csvDataLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const virtualUrl = URL.createObjectURL(blobStream);
+
+                const exportTrigger = document.createElement("a");
+                exportTrigger.setAttribute("href", virtualUrl);
+                exportTrigger.setAttribute("download", `Commercial_Intelligence_Export_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(exportTrigger);
+
+                exportTrigger.click();
+                document.body.removeChild(exportTrigger);
+                URL.revokeObjectURL(virtualUrl);
+            } catch (error) {
+                console.error("Failed running browser file system export array transformation:", error);
+            }
+        });
+    });
+    // --- 🌟 INSERTED END ---
+});
