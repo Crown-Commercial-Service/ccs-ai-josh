@@ -1,5 +1,6 @@
 import os
 
+from gto.api import history
 
 # Set environment variables for LangChain Azure Search integration
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
@@ -18,6 +19,8 @@ from src.multiturn_utils import build_graph, answer_once, format_sources
 from src.sanitise import sanitise_user_input, PromptInjectionError
 from Feedback.feedback_mechanism import FeedbackMechanism
 from langgraph_checkpoint_cosmosdb import CosmosDBSaver
+from src.text_to_sql import train_text_to_sql
+from src.query_correction_engine import spell_correct_user_query, harden_vanna_sql
 
 # --- INITIALIZATION ---
 
@@ -80,6 +83,12 @@ checkpointer = CosmosDBSaver(
 )
 
 # --- FLASK ROUTE ---
+azure_env = os.getenv("USE_AZURE", False)
+dummy_env = os.getenv("USE_DUMMY", True)
+using_azure = str(azure_env).strip().lower() == "true"
+using_dummy = str(dummy_env).strip().lower() == "true"
+
+model = train_text_to_sql(use_azure= using_azure, use_dummy=using_dummy)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -138,17 +147,93 @@ def home():
                 graphs[user_id] = build_graph(llm=llm, vector_store=vector_store, checkpointer=checkpointer)
 
             graph = graphs[user_id]
+            #  get context for vanna ai
+            state = graph.get_state(config)
+            graph_messages = state.values.get("messages", [])
+            # Filter down to true conversation items only (skipping our system overrides)
+            clean_conversation = [
+                msg for msg in graph_messages
+                if msg.type in ("human", "ai") and not getattr(msg, "tool_calls", None)
+            ]
+            history_context = ""
+            for msg in clean_conversation[-6:]:  # Safely inspect the last 6 clean turns
+                role_label = "user" if msg.type == "human" else "assistant"
+                history_context += f"{role_label}: {msg.content}\n"
+            user_input_sql = spell_correct_user_query(user_input=user_input, llm=llm) # TODO update json file name once you get real data
+            compiled_query = f"Context:\n{history_context}Current Request: {user_input_sql}"
+            print(compiled_query)
+            #  Get data warehouse tables using Vanna SQL
+            db_context = ""
+            raw_ui_data = []
+            df_results = None
+            try:
+                generated_sql = model.generate_sql(compiled_query)
+                generated_sql = harden_vanna_sql(generated_sql)
+                print(f"Hardened Execution SQL Sent to DB: {generated_sql}")
+                df_results = model.run_sql(generated_sql)
+                if df_results is not None and not df_results.empty:
+                    raw_ui_data = df_results.to_dict(orient="records")
 
-            # Get response from the langgraph - messages saves history to MemorySaver automatically
-            # answer_once should handle the tool calls and saving
-            response = answer_once(graph, user_input, thread_id=user_id)
+                    if len(df_results) > 30:
+                        print("lots of rows more than 30")
+                        total_rows = len(df_results)
+                        numeric_summary = ""
+                        for col in df_results.select_dtypes(include=['number']).columns:
+                            numeric_summary += f"- Total Sum of {col}: {df_results[col].sum():,.2f}\n"
+                            numeric_summary += f"- Average of {col}: {df_results[col].mean():,.2f}\n"
+
+                        sample_df = df_results.head(5)
+
+                        db_context = (
+                            f"--- DATA OVERVIEW (COMPLETE REFRESH: {total_rows} ROWS) ---\n"
+                            f"Calculated Aggregates across all rows:\n{numeric_summary}\n"
+                            f"--- STRUCTURE SAMPLE (FIRST 5 ROWS) ---\n"
+                            f"{sample_df.to_string(index=False)}"
+                        )
+                    else:
+                        db_context = df_results.to_string(index=False)
+                else:
+                    db_context = "The query executed successfully but returned 0 rows matching these parameters."
+                    raw_ui_data = []
+
+            except Exception as db_err:
+                db_context = f"No structured database matching fields: {str(db_err)}"
+                raw_ui_data = []
+
+            # INJECTION: Update LangGraph state thread with the SQL results before execution
+            if df_results is not None and not df_results.empty:
+                graph.update_state(
+                    config,
+                    {
+                        "messages": [
+
+                            {
+                                "role": "system",
+                                "content": f"--- RETRIEVED DATABASE TABLE DATA ---\n{db_context}\n"
+                                           f"Blend these metrics into your final analysis answer where appropriate."
+                            }
+                        ]
+                    }
+                )
+                # Get response from the langgraph - messages saves history to CosmoDB Saver automatically
+                response = answer_once(graph, user_input, thread_id=user_id)
+            else:
+                response = answer_once(graph, user_input, thread_id=user_id)
+
+
             print(f"Graph processed response: {response}")
+            updated_state = graph.get_state(config)
+            live_messages = updated_state.values.get("messages", [])
+            if live_messages and live_messages[-1].type == "ai":
+                # Inject the data array into the fresh message's additional_kwargs backpack frame
+                live_messages[-1].additional_kwargs["full_table_data"] = raw_ui_data
+                graph.update_state(config, {"messages": live_messages})
 
 
         # Redirect to the same page with a GET request to show the updated chat
         return redirect(url_for("home"))
 
-    #  Pull history from LangGraph MemorySaver
+    #  Pull history from LangGraph CosmoDBSaver
     formatted_history = []
     if user_id in graphs:
         graph = graphs[user_id]
@@ -158,12 +243,14 @@ def home():
         for msg in graph_messages:
             role = "user" if msg.type == "human" else "assistant"
 
+
             if msg.content and msg.type in ("human", "ai"):
                 # Initialize message data for the UI
                 msg_data = {
                     "role": role,
                     "content": md.render(msg.content),
-                    "sources": ""  # Default empty
+                    "sources": "",  # Default empty
+                    "full_table": msg.additional_kwargs.get("full_table_data", None)
                 }
 
                 # If it's the assistant, check the "Backpack" for sources
