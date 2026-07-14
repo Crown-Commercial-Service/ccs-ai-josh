@@ -10,3 +10,12 @@ raw_docs/*
 .github/instructions/snyk_rules.instructions.md
 node_modules/
 src/company_store.db
+db_connection.py
+index.json
+CI_document_URLs.csv
+azd_local_chroma/
+check.py
+company_store.db
+scripts/raw_docs/
+src/azd_local_chroma/
+.idea/
