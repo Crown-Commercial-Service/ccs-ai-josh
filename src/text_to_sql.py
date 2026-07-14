@@ -10,6 +10,7 @@ import pyodbc
 import pandas as pd
 from dotenv import load_dotenv
 import struct
+from pathlib import Path
 
 load_dotenv()
 azure_credential = DefaultAzureCredential()
@@ -22,8 +23,7 @@ client = AzureOpenAI(
     azure_ad_token_provider=token_provider
 )
 
-retrain_vanna = os.getenv("USE_AZURE", False)
-retrain_vanna = str(retrain_vanna).strip().lower() == "true"
+
 
 
 
@@ -157,8 +157,16 @@ def initialise_agent(use_azure=False):
             }
         )
 
+def load_row_snippet():
+    current_dir = Path(__file__).resolve().parent
+    context_doc = current_dir / "vanna_context_documents" / "row_snippet.md"
+    if context_doc.exists():
+        data_snippet_documentation = context_doc.read_text(encoding="utf-8")
+        return data_snippet_documentation
+    else:
+        return None
 
-def train_text_to_sql(use_dummy=False, use_azure=False):
+def train_text_to_sql(use_dummy=False, use_azure=False, retrain_vanna=True):
     model = initialise_agent(use_azure=use_azure)
 
     if use_dummy:
@@ -216,13 +224,6 @@ def train_text_to_sql(use_dummy=False, use_azure=False):
         model.run_sql = custom_run_sql
         model.run_sql_is_set = True
 
-        # # 3. Check for existing training data in Azure vector index
-        # try:
-        #     existing_training = model.get_training_data()
-        # except Exception:
-        #     existing_training = pd.DataFrame()
-
-        # 4. Extract schema dynamically and train Vanna (No complex loops, no hardcoding)
         if retrain_vanna is True:
             print(f"🏋️‍♂️ Azure Search index is empty. Extracting schema for {os.getenv('PROD_DB_TABLE_NAME')}...")
 
@@ -248,6 +249,10 @@ def train_text_to_sql(use_dummy=False, use_azure=False):
 
                 # Train the model in one shot
                 model.train(plan=plan)
+                # add context to the model
+                row_snippet = load_row_snippet()
+                if row_snippet is not None:
+                    model.add_documentation(row_snippet)
                 print("🚀 Production Azure Search training pass completed successfully!")
             except Exception as e:
                 print(f"⚠️ Error during automated schema training: {e}")
@@ -256,27 +261,27 @@ def train_text_to_sql(use_dummy=False, use_azure=False):
 
         return model
 
-model = train_text_to_sql(use_azure=True, use_dummy=False)
-
-from langchain_openai import  AzureChatOpenAI
-from dotenv import load_dotenv
-from src.query_correction_engine import spell_correct_user_query, harden_vanna_sql
-load_dotenv()
-
-llm = AzureChatOpenAI(
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_key=os.getenv("AZURE_OPENAI_KEY"),
-    azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    temperature=0.0,
-)
-
-cleaned_input = spell_correct_user_query(user_input="show me all the data first 5 rows", llm=llm)
-
-sql_query = model.generate_sql(cleaned_input)
-sql_query = harden_vanna_sql(sql_query)
-print("________SQL QUERY _________")
-print(sql_query)
-print("_________OUTPUT_________")
-result = model.run_sql(sql_query)
-print(result.to_string(index=False))
+# model = train_text_to_sql(use_azure=True, use_dummy=False)
+#
+# from langchain_openai import  AzureChatOpenAI
+# from dotenv import load_dotenv
+# from src.query_correction_engine import spell_correct_user_query, harden_vanna_sql
+# load_dotenv()
+#
+# llm = AzureChatOpenAI(
+#     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+#     api_key=os.getenv("AZURE_OPENAI_KEY"),
+#     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
+#     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+#     temperature=0.0,
+# )
+#
+# cleaned_input = spell_correct_user_query(user_input="show me all the data first 5 rows", llm=llm)
+#
+# sql_query = model.generate_sql(cleaned_input)
+# sql_query = harden_vanna_sql(sql_query)
+# print("________SQL QUERY _________")
+# print(sql_query)
+# print("_________OUTPUT_________")
+# result = model.run_sql(sql_query)
+# print(result.to_string(index=False))

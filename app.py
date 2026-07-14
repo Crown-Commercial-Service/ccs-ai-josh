@@ -83,12 +83,15 @@ checkpointer = CosmosDBSaver(
 )
 
 # --- FLASK ROUTE ---
-azure_env = os.getenv("USE_AZURE", False)
-dummy_env = os.getenv("USE_DUMMY", True)
+azure_env = os.getenv("USE_AZURE", True)
+dummy_env = os.getenv("USE_DUMMY", False)
+retrain_vanna = os.getenv("RETRAIN_VANNA_MODEL", False)
+
 using_azure = str(azure_env).strip().lower() == "true"
 using_dummy = str(dummy_env).strip().lower() == "true"
+retrain_vanna = str(retrain_vanna).strip().lower() == "true"
 
-model = train_text_to_sql(use_azure= using_azure, use_dummy=using_dummy)
+model = train_text_to_sql(use_azure= using_azure, use_dummy=using_dummy, retrain_vanna=retrain_vanna)
 
 
 @app.route('/', methods=['GET', 'POST'])
