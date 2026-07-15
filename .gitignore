@@ -19,3 +19,4 @@ company_store.db
 scripts/raw_docs/
 src/azd_local_chroma/
 .idea/
+src/vanna_context_documents/row_snippet.md

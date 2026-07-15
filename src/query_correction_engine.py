@@ -122,18 +122,18 @@ def harden_vanna_sql(sql_str: str, json_name: str = "dummy_entities.json") -> st
     Dynamically loads the catalog to fix casing/naming issues and patches broken relative dates.
     """
     if not sql_str:
-        print("nothing happening")
+
         return sql_str
 
     # 🌟 1. DYNAMIC CATALOG LOADING: Pull vocabulary directly inside the function
     try:
-        print("This is happening")
+
         json_path = SQL_entities_folder / json_name
         with open(json_path, "r") as f:
             catalog_data = json.load(f)
             # Combine suppliers and frameworks into one dynamic search-and-replace catalog list
             validation_catalog = catalog_data.get("suppliers", []) + catalog_data.get("frameworks", [])
-            print(validation_catalog)
+
     except Exception as err:
         print(f"⚠️ SQL post-processor failed to load entity catalog: {err}")
         validation_catalog = []

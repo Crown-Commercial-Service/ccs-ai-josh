@@ -175,7 +175,7 @@ def home():
                 print(f"Hardened Execution SQL Sent to DB: {generated_sql}")
                 df_results = model.run_sql(generated_sql)
                 if df_results is not None and not df_results.empty:
-                    raw_ui_data = df_results.to_dict(orient="records")
+                    raw_ui_data = df_results.head(20).to_dict(orient="records")
 
                     if len(df_results) > 30:
                         print("lots of rows more than 30")

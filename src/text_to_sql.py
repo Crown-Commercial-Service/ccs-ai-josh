@@ -187,7 +187,7 @@ def train_text_to_sql(use_dummy=False, use_azure=False, retrain_vanna=True):
             for ddl in df_ddl['sql'].to_list():
                 model.train(ddl=ddl)
         else:
-            print("🚀 Local training cache found! Skipping training step.")
+            print("🚀 Local trained model found ! Skipping training step.")
 
         return model
 
@@ -225,7 +225,7 @@ def train_text_to_sql(use_dummy=False, use_azure=False, retrain_vanna=True):
         model.run_sql_is_set = True
 
         if retrain_vanna is True:
-            print(f"🏋️‍♂️ Azure Search index is empty. Extracting schema for {os.getenv('PROD_DB_TABLE_NAME')}...")
+            print(f"🏋️‍♂️ Starting Retraining. Extracting schema for {os.getenv('PROD_DB_TABLE_NAME')}...")
 
             # Using exact aliases Vanna requires to map the database structure seamlessly
             columns_query = f"""
@@ -253,11 +253,11 @@ def train_text_to_sql(use_dummy=False, use_azure=False, retrain_vanna=True):
                 row_snippet = load_row_snippet()
                 if row_snippet is not None:
                     model.add_documentation(row_snippet)
-                print("🚀 Production Azure Search training pass completed successfully!")
+                print("🚀  training pass completed successfully!")
             except Exception as e:
                 print(f"⚠️ Error during automated schema training: {e}")
         else:
-            print("🚀 Production Azure Search training cache found! Skipping training step.")
+            print("🚀 No retraining commanded! Skipping training step.")
 
         return model
 
