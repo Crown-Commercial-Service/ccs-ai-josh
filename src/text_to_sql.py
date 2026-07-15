@@ -145,7 +145,7 @@ def initialise_agent(use_azure=False):
             config={
                 'model': 'gpt-5.4-mini',
                 'azure_search_endpoint': os.getenv("VANNA_VECTOR_STORE_ENDPOINT"),
-                'index_name': 'data-agent-db-knowledge',
+                'index_name': os.getenv("VANNA_INDEX_NAME"),
             }
         )
     else:
