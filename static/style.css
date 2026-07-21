@@ -17,6 +17,48 @@
     background: #fff;
     border: 1px solid #b1b4b6;
     box-sizing: border-box;
+    position: relative;
+}
+
+.app-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(1px);
+}
+
+.app-loading-overlay[hidden] {
+    display: none !important;
+}
+
+.app-loading-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #fff;
+    border: 2px solid #1d70b8;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.app-spinner {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 3px solid #b1b4b6;
+    border-top-color: #1d70b8;
+    border-radius: 50%;
+    animation: app-spin 0.8s linear infinite;
+}
+
+@keyframes app-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .app-chat-window {

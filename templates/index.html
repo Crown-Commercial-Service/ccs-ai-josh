@@ -80,6 +80,13 @@
                 </div>
             {% endif %}
 
+            <div class="app-loading-overlay" id="loading-overlay" hidden aria-live="polite" aria-busy="true">
+                <div class="app-loading-card" role="status">
+                    <div class="app-spinner" aria-hidden="true"></div>
+                    <p class="govuk-body govuk-!-margin-bottom-0">Working on your answer…</p>
+                </div>
+            </div>
+
             <div class="app-chat-window" id="chat-window">
             {% for message in messages %}
                 <div class="chat-message {{ message.role }}" data-message-index="{{ loop.index0 }}">
@@ -97,12 +104,6 @@
                                         </span>
                                     </summary>
                                     <div class="govuk-details__text">
-<!--                                        <button class="govuk-button govuk-button&#45;&#45;secondary govuk-!-margin-bottom-3 js-csv-download-btn"-->
-<!--                                                type="button"-->
-<!--                                                data-table-json="{{ message.full_table | tojson | forceescape }}">-->
-<!--                                            Download report dataset (CSV)-->
-<!--                                        </button>-->
-
                                         <div class="govuk-table-scroll-container" style="overflow-x: auto; max-height: 300px; border: 1px solid #b1b4b6; margin-bottom: 10px;">
                                             <table class="govuk-table" style="font-size: 14px; margin-bottom: 0; min-width: 100%;">
                                                 <thead class="govuk-table__head" style="position: sticky; top: 0; background: #f3f2f1; z-index: 2;">
@@ -132,7 +133,7 @@
                             {% endif %}
                         {% endif %}
 
-                                         {% if message.role == 'assistant' and message.sources %}
+                        {% if message.role == 'assistant' and message.sources %}
                         <details class="govuk-details sources-expander" data-module="govuk-details">
                             <summary class="govuk-details__summary">
                                 <span class="govuk-details__summary-text">View sources</span>
@@ -141,53 +142,22 @@
                                 {{ message.sources | safe }}
                             </div>
                         </details>
-                    {% endif %}
+                        {% endif %}
                         {% if message.role == 'assistant' %}
                             <div class="feedback-controls"
                                  data-assistant-index="{{ loop.index0 }}"
                                  data-user-index="{{ loop.index0 - 1 }}">
                                 <span class="feedback-label govuk-hint">Was this helpful?</span>
-                                <button
-                                    class="feedback-btn js-feedback-btn"
-                                    type="button"
-                                    data-index="{{ loop.index0 }}"
-                                    data-feedback-type="up"
-                                    data-feedback-state="neutral"
-                                    title="Thumbs Up"
-                                    aria-label="Thumbs up"
-                                >
-                                    👍
-                                </button>
-                                <button
-                                    class="feedback-btn js-feedback-btn"
-                                    type="button"
-                                    data-index="{{ loop.index0 }}"
-                                    data-feedback-type="down"
-                                    data-feedback-state="neutral"
-                                    title="Thumbs Down"
-                                    aria-label="Thumbs down"
-                                >
-                                    👎
-                                </button>
+                                <button class="feedback-btn js-feedback-btn" type="button" data-index="{{ loop.index0 }}" data-feedback-type="up" data-feedback-state="neutral" title="Thumbs Up" aria-label="Thumbs up">👍</button>
+                                <button class="feedback-btn js-feedback-btn" type="button" data-index="{{ loop.index0 }}" data-feedback-type="down" data-feedback-state="neutral" title="Thumbs Down" aria-label="Thumbs down">👎</button>
                             </div>
                         {% endif %}
-
-<!--                        {% if message.role == 'assistant' and message.sources %}-->
-<!--                            <details class="govuk-details sources-expander" data-module="govuk-details">-->
-<!--                                <summary class="govuk-details__summary">-->
-<!--                                    <span class="govuk-details__summary-text">View sources</span>-->
-<!--                                </summary>-->
-<!--                                <div class="govuk-details__text sources-content">-->
-<!--                                    {{ message.sources | safe }}-->
-<!--                                </div>-->
-<!--                            </details>-->
-<!--                        {% endif %}-->
                     </div>
                 </div>
             {% endfor %}
             </div>
 
-            <form method="POST" action="{{ url_for('home') }}" class="app-input-form">
+            <form method="POST" action="{{ url_for('home') }}" class="app-input-form" id="chat-form">
                 <div class="govuk-form-group app-form-group">
                     <label class="govuk-label govuk-visually-hidden" for="chat-message">
                         Ask a question
