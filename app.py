@@ -1,5 +1,9 @@
 import io
 import os
+# Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
+# Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
+os.environ["AZURESEARCH_FIELDS_CONTENT"] = "chunk"
 import uuid
 
 import pandas as pd
@@ -183,8 +187,9 @@ def inject_results_into_graph(graph, config, db_context: str, df_results):
                     {
                         "role": "system",
                         "content": (
-                            f"--- RETRIEVED DATABASE TABLE DATA ---\n{db_context}\n"
-                            f"Blend these metrics into your final analysis answer where appropriate."
+                            "=== RETRIEVED STRUCTURED SQL DATA ===\n"
+                            f"{db_context}\n"
+                            "Blend these metrics into your final analysis answer where appropriate."
                         ),
                     }
                 ]
