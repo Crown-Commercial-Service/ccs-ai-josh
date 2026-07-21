@@ -74,28 +74,34 @@ def generate(state: MessagesState, llm: Any):
         message for message in current_turn_messages if getattr(message, "type", None) == "tool"
     ]
     source_names = _extract_current_turn_sources(recent_tool_messages)
-
     docs_content = "\n\n".join(doc.content for doc in recent_tool_messages)
     safe_context = sanitise_retrieved_content(docs_content)
 
+    sql_context_str = "No structured SQL database data returned for this query."
+    for msg in reversed(state["messages"]):
+        if getattr(msg, "type", None) == "system" and "=== RETRIEVED STRUCTURED SQL DATA ===" in getattr(msg, "content", ""):
+            sql_context_str = msg.content
+            break
+
     system_message_content = (
         "You are an assistant for question-answering tasks that must synthesize BOTH structured SQL data "
-        "and unstructured document context. "
-        "Use exact numbers, totals, counts, and table summaries from structured SQL data injected in system messages. "
-        "Use document context from <document_context> tags for policies, descriptions, narrative explanations, and qualitative guidance. "
-        "Blend both context streams into one cohesive, concise answer. "
-        "If they conflict, prefer the most specific and recent context. "
-        "Use three sentences maximum unless a concise bullet list is clearly more useful."
-        "\n\n"
-        "<document_context>"
-        f"{safe_context}"
+        "and unstructured document context.\n\n"
+        "GROUND TRUTH: Structured SQL data in <sql_database_context> is the absolute source of truth for all exact metrics, totals, spend figures, and counts.\n"
+        "COMPLEMENTARY RAG: Use information from <document_context> to provide narrative context, policy guidance, or qualitative details that support or explain the SQL results.\n"
+        "CONTRADICTION HANDLING: If any retrieved document figures or totals directly contradict the SQL data, ignore the contradicting numbers in the documents and strictly report the SQL figures.\n"
+        "When quantitative metrics are present, lead with the SQL answer first, then follow with non-contradictory document context.\n"
+        "Blend both context streams into one cohesive, concise answer.\n"
+        "Use three sentences maximum unless a concise bullet list is clearly more useful.\n\n"
+        "<sql_database_context>\n"
+        f"{sql_context_str}\n"
+        "</sql_database_context>\n\n"
+        "<document_context>\n"
+        f"{safe_context}\n"
         "</document_context>"
     )
     conversation_messages = [
-        message
-        for message in current_turn_messages
-        if message.type in ("human", "system")
-        or (message.type == "ai" and not message.tool_calls)
+        message for message in current_turn_messages
+        if message.type in ("human", "ai") and not getattr(message, "tool_calls", None)
     ]
     prompt = [SystemMessage(system_message_content)] + conversation_messages
     response = llm.invoke(prompt)
