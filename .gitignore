@@ -20,3 +20,4 @@ scripts/raw_docs/
 src/azd_local_chroma/
 .idea/
 src/vanna_context_documents/row_snippet.md
+SQL_entities/

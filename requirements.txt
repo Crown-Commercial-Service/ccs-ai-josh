@@ -233,3 +233,4 @@ vanna[chromadb,openai]==2.0.2
 fastembed==0.8.0
 pyodbc
 azure-storage-file-datalake
+git+https://github.com/DavisAgyemang/ccss_web_api_tool.git

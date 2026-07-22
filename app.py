@@ -1,4 +1,5 @@
 import io
+import json
 import os
 # Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
@@ -82,14 +83,54 @@ model = train_text_to_sql(
 )
 
 
+def _get_blob_service_client() -> BlobServiceClient:
+    """Create the shared passwordless Blob Storage client."""
+    blob_url = os.getenv("BLOB_URL")
+    if not blob_url:
+        raise ValueError("BLOB_URL environment variable is required.")
+    return BlobServiceClient(
+        account_url=blob_url,
+        credential=DefaultAzureCredential(),
+    )
+
+
+def load_real_entities() -> dict | None:
+    """Load and validate real_entities.json from Azure Blob Storage.
+
+    Returning ``None`` preserves the query correction engine's existing local
+    catalog fallback when Blob Storage is temporarily unavailable.
+    """
+    try:
+        container_name = os.getenv("REAL_ENTITIES_CONTAINER")
+        if not container_name:
+            raise ValueError("REAL_ENTITIES_CONTAINER environment variable is required.")
+
+        blob_client = _get_blob_service_client().get_blob_client(
+            container=container_name,
+            blob="real_entities.json",
+        )
+        entities = json.loads(blob_client.download_blob().readall())
+
+        if not isinstance(entities, dict):
+            raise ValueError("The entity catalog must be a JSON object.")
+        if not isinstance(entities.get("suppliers"), list):
+            raise ValueError("The entity catalog must contain a suppliers list.")
+        if not isinstance(entities.get("frameworks"), list):
+            raise ValueError("The entity catalog must contain a frameworks list.")
+
+        return entities
+    except Exception as exc:
+        print(
+            "Error loading real_entities.json from Blob Storage; "
+            f"using the existing local catalog fallback: {exc}"
+        )
+        return None
+
+
 def load_ci_docs_urls() -> pd.DataFrame:
     """Load CI document URLs from Azure Blob Storage."""
     try:
-        credential = DefaultAzureCredential()
-        blob_service_client = BlobServiceClient(
-            account_url=os.getenv("BLOB_URL"), credential=credential
-        )
-        container_client = blob_service_client.get_container_client(
+        container_client = _get_blob_service_client().get_container_client(
             os.getenv("BLOB_CONFIG_CONTAINER")
         )
         blob_client = container_client.get_blob_client("CI_document_URLs.csv")
@@ -134,7 +175,7 @@ def build_history_context(graph_messages) -> str:
     return history_context
 
 
-def run_sql_pipeline(compiled_query: str):
+def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
     """Generate, harden, and execute SQL, returning dataframe and UI payload."""
     db_context = ""
     raw_ui_data = []
@@ -142,7 +183,10 @@ def run_sql_pipeline(compiled_query: str):
 
     try:
         generated_sql = model.generate_sql(compiled_query)
-        generated_sql = harden_vanna_sql(generated_sql)
+        generated_sql = harden_vanna_sql(
+            generated_sql,
+            catalog_data=catalog_data,
+        )
         print(f"Hardened Execution SQL Sent to DB: {generated_sql}")
         df_results = model.run_sql(generated_sql)
 
@@ -258,11 +302,22 @@ def home():
             state = graph.get_state(config)
             graph_messages = state.values.get("messages", [])
             history_context = build_history_context(graph_messages)
-            user_input_sql = spell_correct_user_query(user_input=user_input, llm=llm)
+
+            # Use the same Blob-hosted catalog for both query correction and
+            # SQL hardening so the two stages cannot disagree about entities.
+            real_entities = load_real_entities()
+            user_input_sql = spell_correct_user_query(
+                user_input=user_input,
+                llm=llm,
+                catalog_data=real_entities,
+            )
             compiled_query = f"Context:\n{history_context}Current Request: {user_input_sql}"
             print(compiled_query)
 
-            df_results, raw_ui_data, db_context = run_sql_pipeline(compiled_query)
+            df_results, raw_ui_data, db_context = run_sql_pipeline(
+                compiled_query,
+                catalog_data=real_entities,
+            )
             inject_results_into_graph(graph, config, db_context, df_results)
 
             response = answer_once(graph, user_input, thread_id=user_id)

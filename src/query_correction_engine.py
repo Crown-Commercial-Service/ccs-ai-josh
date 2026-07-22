@@ -30,7 +30,7 @@ def format_financial_years(text: str) -> str:
 
     # --- 2. Catch 2-digit shorthand ranges (e.g., '25/26' or '24/25') ---
     # Looks for two digits, a slash, and two digits
-    short_range_pattern = r'\b(\d{2})\s*/\s*(\d{2})\b(?!\s*/)'
+    short_range_pattern = r'\b(\d{2})\s*/\s*(\d{2})\b(?!\s/)'
 
     def expand_short_range(match):
         start_yy = match.group(1)
@@ -41,7 +41,7 @@ def format_financial_years(text: str) -> str:
 
     # --- 3. Catch standalone 4-digit years (e.g., '2025' or '2026') ---
     # Looks for a 4-digit year that isn't already followed by a slash /
-    four_digit_pattern = r'\b(19|20)(\d{2})\b(?!\s*/)'
+    four_digit_pattern = r'\b(19|20)(\d{2})\b(?!\s/)'
 
     def expand_standalone_year(match):
         century = match.group(1)  # e.g., "20"
@@ -54,26 +54,30 @@ def format_financial_years(text: str) -> str:
     return text
 
 
-def spell_correct_user_query(user_input: str, llm: Any, json_name: str = "dummy_entities.json") -> str:
-    """First fixes financial year mathematics, then maps messy shorthand and
+def spell_correct_user_query(
+    user_input: str,
+    llm: Any,
+    json_name: str = "dummy_entities.json",
+    catalog_data: dict[str, Any] | None = None,
+) -> str:
+    """Fix financial years and map shorthand to official catalog entries.
 
-    supplier misspellings to ground-truth catalog entries.
+    ``catalog_data`` allows callers to supply a catalog loaded from an external
+    source. Existing callers can continue using ``json_name`` unchanged.
     """
-    # STEP A: Handle Date Conversion Locally (Zero Tokens Cost)
-    # This turns "BAE spend from 2026" into "BAE spend from 2026/27"
     processed_input = format_financial_years(user_input)
 
-    #  Safely load the pruned dictionary catalog
+    if catalog_data is None:
+        json_path = os.path.join(SQL_entities_folder, json_name)
+        try:
+            with open(json_path, "r") as f:
+                valid_vocabulary = json.load(f)
+        except Exception as err:
+            print(f"⚠️ Dictionary read failure: {err}. Returning date-patched input.")
+            return processed_input
+    else:
+        valid_vocabulary = catalog_data
 
-    json_path = os.path.join(SQL_entities_folder, json_name)
-    try:
-        with open(json_path, "r") as f:
-            valid_vocabulary = json.load(f)
-    except Exception as err:
-        print(f"⚠️ Dictionary read failure: {err}. Returning date-patched input.")
-        return processed_input
-
-    # 🌟 STEP B: LLM Supplier & Framework Translator Block
     system_prompt = (
         "You are a strict text entity translator. Analyze the user's input string "
         "and check if any words are misspellings, abbreviations, or casing variants of our official database entries.\n\n"
@@ -102,7 +106,6 @@ def spell_correct_user_query(user_input: str, llm: Any, json_name: str = "dummy_
 
         corrections = json.loads(clean_json_string)
 
-        # Patch the string safely in Python
         corrected_query = processed_input
         for typo_chunk, official_row_value in corrections.items():
             insensitive_regex = re.compile(re.escape(typo_chunk), re.IGNORECASE)
@@ -114,56 +117,56 @@ def spell_correct_user_query(user_input: str, llm: Any, json_name: str = "dummy_
         print(f"⚠️ Grammar translation fallback active: {err}")
         return processed_input
 
+
 # =========================================================================
 # 🌟 THE SQL POST-PROCESSOR INTERCEPTOR
 # =========================================================================
-def harden_vanna_sql(sql_str: str, json_name: str = "dummy_entities.json") -> str:
-    """Processes Vanna's SQL output directly to guarantee 100% database compatibility.
-    Dynamically loads the catalog to fix casing/naming issues and patches broken relative dates.
+def harden_vanna_sql(
+    sql_str: str,
+    json_name: str = "dummy_entities.json",
+    catalog_data: dict[str, Any] | None = None,
+) -> str:
+    """Process Vanna SQL to improve database compatibility.
+
+    ``catalog_data`` allows callers to supply a catalog loaded from an external
+    source. Existing callers can continue using ``json_name`` unchanged.
     """
     if not sql_str:
-
         return sql_str
 
-    # 🌟 1. DYNAMIC CATALOG LOADING: Pull vocabulary directly inside the function
-    try:
+    if catalog_data is None:
+        try:
+            json_path = SQL_entities_folder / json_name
+            with open(json_path, "r") as f:
+                catalog_data = json.load(f)
+        except Exception as err:
+            print(f"⚠️ SQL post-processor failed to load entity catalog: {err}")
+            catalog_data = {}
 
-        json_path = SQL_entities_folder / json_name
-        with open(json_path, "r") as f:
-            catalog_data = json.load(f)
-            # Combine suppliers and frameworks into one dynamic search-and-replace catalog list
-            validation_catalog = catalog_data.get("suppliers", []) + catalog_data.get("frameworks", [])
+    validation_catalog = (
+        catalog_data.get("suppliers", []) + catalog_data.get("frameworks", [])
+    )
 
-    except Exception as err:
-        print(f"⚠️ SQL post-processor failed to load entity catalog: {err}")
-        validation_catalog = []
-
-    # 🌟 2. Match partial query strings to their full, official catalog counterparts
-    # Targets specific patterns like: SupplierName = 'Microsoft' or Framework = 'RM6100'
     entity_pattern = r"(\b(?:SupplierName|Framework)\s*=\s*['\"])([^'\"]+)(['\"])"
 
     def replace_with_catalog_entry(match):
-        prefix = match.group(1)  # Keeps: SupplierName = '
-        current_val = match.group(2)  # Extracts: Microsoft
-        suffix = match.group(3)  # Keeps: '
+        prefix = match.group(1)
+        current_val = match.group(2)
+        suffix = match.group(3)
 
-        # Check if the short value from the SQL query is a substring of an official catalog entry
         for entry in validation_catalog:
             if current_val.lower() in entry.lower():
                 return f"{prefix}{entry}{suffix}"
 
-        # If no match is found in the catalog, leave the original string intact
         return match.group(0)
 
     sql_str = re.sub(entity_pattern, replace_with_catalog_entry, sql_str, flags=re.IGNORECASE)
 
-    # 3. Force naked 4-digit years (e.g., = '2025') into strict YYYY/YY database matches
-    # This safely supports standard assignments (= '2025') and grouping arrays (IN ('2025'))
     sql_safe_year_pattern = r"(=\s*|IN\s*\(\s*)['\"](\d{4})['\"]"
 
     def replace_with_range(match):
-        prefix = match.group(1)  # Keeps the syntax context like "=" or "IN ("
-        year_str = match.group(2)  # Extracts "2025"
+        prefix = match.group(1)
+        year_str = match.group(2)
         short_yy = int(year_str[2:])
         next_yy = (short_yy + 1) % 100
 
@@ -174,17 +177,3 @@ def harden_vanna_sql(sql_str: str, json_name: str = "dummy_entities.json") -> st
     sql_str = re.sub(sql_safe_year_pattern, replace_with_range, sql_str)
 
     return sql_str
-# from langchain_openai import  AzureChatOpenAI
-# from dotenv import load_dotenv
-# load_dotenv()
-#
-# llm = AzureChatOpenAI(
-#     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-#     api_key=os.getenv("AZURE_OPENAI_KEY"),
-#     azure_deployment=os.getenv("DEPLOYMENT_NAME"),
-#     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-#     temperature=0.0,
-# )
-#
-# a = spell_correct_user_query(user_input="give BAEs total spend from 2026", llm=llm)
-# print(a)
