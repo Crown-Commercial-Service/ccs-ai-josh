@@ -3,6 +3,31 @@
     background: #f3f2f1;
 }
 
+.govuk-header {
+    background-color: #9ab6f5;
+}
+
+.govuk-header__container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.app-header-logo {
+    padding: 0;
+}
+
+.app-header-logo__image {
+    display: block;
+    width: auto;
+    max-width: 568.1px;
+    height: 103.155px;
+    object-fit: contain;
+    object-position: left center;
+}
+
 .app-main {
     min-height: 0;
     padding-bottom: 0;
@@ -190,6 +215,12 @@
 }
 
 @media (max-width: 640px) {
+    .app-header-logo__image {
+        max-width: 473.2px;
+        width: 100%;
+        height: 85.9625px;
+    }
+
     .app-chat-window {
         min-height: 300px;
         height: 50vh;
