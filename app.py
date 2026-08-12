@@ -180,8 +180,12 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
     df_results = None
 
     try:
-        generated_sql = model.generate_sql(compiled_query)
-        print(f"DEBUG: Vanna Raw SQL Output -> '{generated_sql}'")
+        try:
+            generated_sql = model.generate_sql(compiled_query)
+            print(f"DEBUG: Vanna Raw SQL Output -> '{generated_sql}'")
+        except Exception as vanna_err:
+            print(f"❌ EXACT VANNA FAILURE CAUSE: {type(vanna_err).__name__}: {vanna_err}")
+            generated_sql = None
         if not generated_sql or str(generated_sql).strip() == "":
             print("⚠️ Vanna returned an empty query string.")
             return None, [], "There is no structured SQL data available for this query."
