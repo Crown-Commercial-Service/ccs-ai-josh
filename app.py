@@ -1,6 +1,9 @@
+import hashlib
 import io
 import json
+import logging
 import os
+import time
 # Azure vector store holds the vectors in a field called "text_vector", not "content_vector" as langchain expects
 os.environ["AZURESEARCH_FIELDS_CONTENT_VECTOR"] = "text_vector"
 # Azure vector store holds the document contents in a field called "chunk", not "content" as langchain expects
@@ -16,6 +19,13 @@ from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from markdown_it import MarkdownIt
 
+# Configure logging explicitly in app.py. This does not depend on Azure loading
+# sitecustomize.py, and it only logs whether settings exist—not their values.
+from src.azure_diagnostics import configure_logging, log_runtime_configuration
+
+configure_logging()
+logger = logging.getLogger("app")
+
 from Feedback.feedback_mechanism import FeedbackMechanism
 from langgraph_checkpoint_cosmosdb import CosmosDBSaver
 from src.multiturn_utils import answer_once, build_graph, format_sources
@@ -26,6 +36,21 @@ from src.text_to_sql import train_text_to_sql
 # --- INITIALIZATION ---
 
 load_dotenv()
+
+log_runtime_configuration(
+    [
+        "AZURE_CLIENT_ID",
+        "PROD_DB_SERVER",
+        "PROD_DB_NAME",
+        "PROD_DB_TABLE_NAME",
+        "VANNA_AZURE_OPENAI_API_VERSION",
+        "VANNA_AZURE_OPENAI_ENDPOINT",
+        "VANNA_AZURE_EMBEDDING_DEPLOYMENT",
+        "VANNA_VECTOR_STORE_ENDPOINT",
+        "VANNA_INDEX_NAME",
+    ]
+)
+logger.info("event=app_initialization_started")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -79,6 +104,13 @@ retrain_vanna = str(retrain_vanna_env).strip().lower() == "true"
 model = train_text_to_sql(
     retrain_vanna=retrain_vanna
 )
+logger.info("event=app_initialization_complete")
+
+
+def _get_azure_credential() -> DefaultAzureCredential:
+    """Create a credential pinned to the configured user-assigned identity."""
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    return DefaultAzureCredential(managed_identity_client_id=client_id or None)
 
 
 def _get_blob_service_client() -> BlobServiceClient:
@@ -88,7 +120,7 @@ def _get_blob_service_client() -> BlobServiceClient:
         raise ValueError("BLOB_URL environment variable is required.")
     return BlobServiceClient(
         account_url=blob_url,
-        credential=DefaultAzureCredential(),
+        credential=_get_azure_credential(),
     )
 
 
@@ -116,11 +148,11 @@ def load_real_entities() -> dict | None:
         if not isinstance(entities.get("frameworks"), list):
             raise ValueError("The entity catalog must contain a frameworks list.")
 
+        logger.info("event=real_entities_load_success")
         return entities
-    except Exception as exc:
-        print(
-            "Error loading real_entities.json from Blob Storage; "
-            f"using the existing local catalog fallback: {exc}"
+    except Exception:
+        logger.exception(
+            "event=real_entities_load_failure action=using_local_catalog_fallback"
         )
         return None
 
@@ -134,11 +166,12 @@ def load_ci_docs_urls() -> pd.DataFrame:
         blob_client = container_client.get_blob_client("CI_document_URLs.csv")
         blob_data = blob_client.download_blob()
         ci_docs_urls = pd.read_csv(io.BytesIO(blob_data.readall()))
+        logger.info("event=ci_document_urls_load_success rows=%d", len(ci_docs_urls))
         return ci_docs_urls.rename(
             columns={"FileName": "File Name", "AzureURL": "File URL"}
         )
-    except Exception as e:
-        print(f"Error loading CSV from Blob Storage: {e}")
+    except Exception:
+        logger.exception("event=ci_document_urls_load_failure")
         return pd.DataFrame()
 
 
@@ -178,20 +211,44 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
     db_context = ""
     raw_ui_data = []
     df_results = None
+    request_id = uuid.uuid4().hex[:12]
+    started = time.monotonic()
 
+    logger.info(
+        "event=sql_pipeline_started request_id=%s prompt_chars=%d catalog_loaded=%s",
+        request_id,
+        len(compiled_query),
+        catalog_data is not None,
+    )
     try:
         generated_sql = model.generate_sql(compiled_query)
+        logger.info(
+            "event=sql_generation_success request_id=%s sql_chars=%d sql_hash=%s",
+            request_id,
+            len(generated_sql),
+            hashlib.sha256(generated_sql.encode("utf-8")).hexdigest()[:12],
+        )
         generated_sql = harden_vanna_sql(
             generated_sql,
             catalog_data=catalog_data,
         )
-        print(f"Hardened Execution SQL Sent to DB: {generated_sql}")
+        # Do not log SQL text because it can contain user-provided or business data.
+        logger.info(
+            "event=sql_hardening_success request_id=%s hardened_sql_chars=%d",
+            request_id,
+            len(generated_sql),
+        )
         df_results = model.run_sql(generated_sql)
 
         if df_results is not None and not df_results.empty:
             raw_ui_data = df_results.head(20).to_dict(orient="records")
+            logger.info(
+                "event=sql_pipeline_results request_id=%s rows=%d columns=%d",
+                request_id,
+                len(df_results),
+                len(df_results.columns),
+            )
             if len(df_results) > 30:
-                print("lots of rows more than 30")
                 total_rows = len(df_results)
                 numeric_summary = ""
                 for col in df_results.select_dtypes(include=["number"]).columns:
@@ -208,11 +265,25 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
             else:
                 db_context = df_results.to_string(index=False)
         else:
+            logger.info("event=sql_pipeline_results request_id=%s rows=0", request_id)
             db_context = (
                 "The query executed successfully but returned 0 rows matching these parameters."
             )
             raw_ui_data = []
+        logger.info(
+            "event=sql_pipeline_success request_id=%s duration_ms=%d",
+            request_id,
+            int((time.monotonic() - started) * 1000),
+        )
     except Exception as db_err:
+        # logger.exception includes the traceback in Azure logs. str(db_err) is
+        # shown to the model/UI as before but credentials and tokens are never logged.
+        logger.exception(
+            "event=sql_pipeline_failure request_id=%s error_type=%s duration_ms=%d",
+            request_id,
+            type(db_err).__name__,
+            int((time.monotonic() - started) * 1000),
+        )
         db_context = f"No structured database matching fields: {str(db_err)}"
         raw_ui_data = []
 
@@ -310,7 +381,6 @@ def home():
                 catalog_data=real_entities,
             )
             compiled_query = f"Context:\n{history_context}Current Request: {user_input_sql}"
-            print(compiled_query)
 
             df_results, raw_ui_data, db_context = run_sql_pipeline(
                 compiled_query,
@@ -319,7 +389,10 @@ def home():
             inject_results_into_graph(graph, config, db_context, df_results)
 
             response = answer_once(graph, user_input, thread_id=user_id)
-            print(f"Graph processed response: {response}")
+            logger.info(
+                "event=graph_response_complete response_type=%s",
+                type(response).__name__,
+            )
             attach_table_data_to_latest_ai_message(graph, config, raw_ui_data)
 
         return redirect(url_for("home"))
@@ -377,4 +450,4 @@ def log_feedback():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", use_reloader=False)
