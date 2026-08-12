@@ -156,11 +156,12 @@ def train_text_to_sql(retrain_vanna=True):
     model = initialise_agent()
 
     # 1. Fetch Entra ID token & build passwordless Azure SQL connection using pyodbc
-    token_obj = azure_credential.get_token("https://database.windows.net/.default")
-    token_bytes = token_obj.token.encode("utf-16-le")
-
-    token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
-
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    sql_credential = (
+        DefaultAzureCredential(managed_identity_client_id=client_id)
+        if client_id
+        else DefaultAzureCredential()
+    )
     db_server = os.getenv("PROD_DB_SERVER")
     db_name = os.getenv("PROD_DB_NAME")
 
@@ -174,6 +175,10 @@ def train_text_to_sql(retrain_vanna=True):
 
     # 2. re-write the custom SQL execution function to use pyodbc and inject the token
     def custom_run_sql(sql: str) -> pd.DataFrame:
+        token_obj = sql_credential.get_token("https://database.windows.net/.default")
+        token_bytes = token_obj.token.encode("utf-16-le")
+        token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
+
         with pyodbc.connect(connection_str, attrs_before={1256: token_struct}) as conn:
             cursor = conn.cursor()
             cursor.execute(sql)
