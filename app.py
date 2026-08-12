@@ -181,6 +181,10 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
 
     try:
         generated_sql = model.generate_sql(compiled_query)
+        print(f"DEBUG: Vanna Raw SQL Output -> '{generated_sql}'")
+        if not generated_sql or str(generated_sql).strip() == "":
+            print("⚠️ Vanna returned an empty query string.")
+            return None, [], "There is no structured SQL data available for this query."
         generated_sql = harden_vanna_sql(
             generated_sql,
             catalog_data=catalog_data,
