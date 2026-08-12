@@ -1,7 +1,6 @@
 import os
 from openai import AzureOpenAI
 from vanna.legacy.openai import OpenAI_Chat
-from vanna.legacy.chromadb import ChromaDB_VectorStore
 from vanna.legacy.azuresearch import AzureAISearch_VectorStore
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
@@ -26,11 +25,6 @@ client = AzureOpenAI(
 
 
 
-
-class TextToSQL(ChromaDB_VectorStore, OpenAI_Chat):
-    def __init__(self, client=None, config=None):
-        ChromaDB_VectorStore.__init__(self, config=config)
-        OpenAI_Chat.__init__(self, client=client, config=config)
 
 
 class AzureTextToSQL(AzureAISearch_VectorStore, OpenAI_Chat):
@@ -138,24 +132,16 @@ class AzureTextToSQL(AzureAISearch_VectorStore, OpenAI_Chat):
         results = self._search_azure_index(question, "documentation")
         return [r["content"] for r in results]
 
-def initialise_agent(use_azure=False):
-    if use_azure:
-        return AzureTextToSQL(
-            client=client,
-            config={
-                'model': 'gpt-5.4-mini',
-                'azure_search_endpoint': os.getenv("VANNA_VECTOR_STORE_ENDPOINT"),
-                'index_name': os.getenv("VANNA_INDEX_NAME"),
-            }
-        )
-    else:
-        return TextToSQL(
-            client=client,
-            config={
-                'model': 'gpt-5.4-mini',
-                'path': './azd_local_chroma'  # Completely free local storage
-            }
-        )
+def initialise_agent():
+    return AzureTextToSQL(
+        client=client,
+        config={
+            'model': 'gpt-5.4-mini',
+            'azure_search_endpoint': os.getenv("VANNA_VECTOR_STORE_ENDPOINT"),
+            'index_name': os.getenv("VANNA_INDEX_NAME"),
+        }
+    )
+
 
 def load_row_snippet():
     current_dir = Path(__file__).resolve().parent
@@ -166,100 +152,77 @@ def load_row_snippet():
     else:
         return None
 
-def train_text_to_sql(use_dummy=False, use_azure=False, retrain_vanna=True):
-    model = initialise_agent(use_azure=use_azure)
+def train_text_to_sql(retrain_vanna=True):
+    model = initialise_agent()
 
-    if use_dummy:
-        db_file = "company_store.db"
-        if not os.path.exists(db_file):
-            from src.dummy_db import build_dummy_database
-            build_dummy_database()
+    # 1. Fetch Entra ID token & build passwordless Azure SQL connection using pyodbc
+    token_obj = azure_credential.get_token("https://database.windows.net/.default")
+    token_bytes = token_obj.token.encode("utf-16-le")
 
-        model.connect_to_sqlite(db_file)
+    token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
 
-        # Check if Vanna already has training data stored locally
-        existing_training = model.get_training_data()
+    db_server = os.getenv("PROD_DB_SERVER")
+    db_name = os.getenv("PROD_DB_NAME")
 
-        # Only train if the local vector storage is completely empty
-        if existing_training.empty:
-            print("🏋️‍♂️ No training data found. Training Vanna model...")
-            df_ddl = model.run_sql("SELECT type, sql FROM sqlite_master WHERE sql is not null")
-            for ddl in df_ddl['sql'].to_list():
-                model.train(ddl=ddl)
-        else:
-            print("🚀 Local trained model found ! Skipping training step.")
+    connection_str = (
+        f"Driver={{ODBC Driver 18 for SQL Server}};"
+        f"Server={db_server};"
+        f"Database={db_name};"
+        f"Encrypt=yes;"
+        f"TrustServerCertificate=yes;"
+    )
 
-        return model
+    # 2. re-write the custom SQL execution function to use pyodbc and inject the token
+    def custom_run_sql(sql: str) -> pd.DataFrame:
+        with pyodbc.connect(connection_str, attrs_before={1256: token_struct}) as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql)
 
+            if cursor.description is None:
+                return pd.DataFrame()
+
+            columns = [column[0] for column in cursor.description]
+            return pd.DataFrame.from_records(cursor.fetchall(), columns=columns)
+
+    model.run_sql = custom_run_sql
+    model.run_sql_is_set = True
+
+    if retrain_vanna is True:
+        print(f"🏋️‍♂️ Starting Retraining. Extracting schema for {os.getenv('PROD_DB_TABLE_NAME')}...")
+
+        # Using exact aliases Vanna requires to map the database structure seamlessly
+        columns_query = f"""
+            SELECT 
+                TABLE_CATALOG as [database],
+                TABLE_SCHEMA as [table_schema],
+                TABLE_NAME as [table_name],
+                COLUMN_NAME as [column_name],
+                DATA_TYPE as [data_type]
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'dbo'
+              AND TABLE_NAME = '{os.getenv("PROD_DB_TABLE_NAME")}'
+        """
+
+        try:
+            # Fetch target table schema
+            df_table_schema = model.run_sql(columns_query)
+
+            # Generate the plan dynamically using Vanna's built-in generator
+            plan = model.get_training_plan_generic(df_table_schema)
+
+            # Train the model in one shot
+            model.train(plan=plan)
+            # add context to the model
+            row_snippet = load_row_snippet()
+            if row_snippet is not None:
+                model.add_documentation(row_snippet)
+            print("🚀  training pass completed successfully!")
+        except Exception as e:
+            print(f"⚠️ Error during automated schema training: {e}")
     else:
-        # 1. Fetch Entra ID token & build passwordless Azure SQL connection using pyodbc
-        token_obj = azure_credential.get_token("https://database.windows.net/.default")
-        token_bytes = token_obj.token.encode("utf-16-le")
+        print("🚀 No retraining commanded! Skipping training step.")
 
-        token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
-
-        db_server = os.getenv("PROD_DB_SERVER")
-        db_name = os.getenv("PROD_DB_NAME")
-
-        connection_str = (
-            f"Driver={{ODBC Driver 18 for SQL Server}};"
-            f"Server={db_server};"
-            f"Database={db_name};"
-            f"Encrypt=yes;"
-            f"TrustServerCertificate=yes;"
-        )
-
-        # 2. re-write the custom SQL execution function to use pyodbc and inject the token
-        def custom_run_sql(sql: str) -> pd.DataFrame:
-            with pyodbc.connect(connection_str, attrs_before={1256: token_struct}) as conn:
-                cursor = conn.cursor()
-                cursor.execute(sql)
-
-                if cursor.description is None:
-                    return pd.DataFrame()
-
-                columns = [column[0] for column in cursor.description]
-                return pd.DataFrame.from_records(cursor.fetchall(), columns=columns)
-
-        model.run_sql = custom_run_sql
-        model.run_sql_is_set = True
-
-        if retrain_vanna is True:
-            print(f"🏋️‍♂️ Starting Retraining. Extracting schema for {os.getenv('PROD_DB_TABLE_NAME')}...")
-
-            # Using exact aliases Vanna requires to map the database structure seamlessly
-            columns_query = f"""
-                SELECT 
-                    TABLE_CATALOG as [database],
-                    TABLE_SCHEMA as [table_schema],
-                    TABLE_NAME as [table_name],
-                    COLUMN_NAME as [column_name],
-                    DATA_TYPE as [data_type]
-                FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_SCHEMA = 'dbo'
-                  AND TABLE_NAME = '{os.getenv("PROD_DB_TABLE_NAME")}'
-            """
-
-            try:
-                # Fetch target table schema
-                df_table_schema = model.run_sql(columns_query)
-
-                # Generate the plan dynamically using Vanna's built-in generator
-                plan = model.get_training_plan_generic(df_table_schema)
-
-                # Train the model in one shot
-                model.train(plan=plan)
-                # add context to the model
-                row_snippet = load_row_snippet()
-                if row_snippet is not None:
-                    model.add_documentation(row_snippet)
-                print("🚀  training pass completed successfully!")
-            except Exception as e:
-                print(f"⚠️ Error during automated schema training: {e}")
-        else:
-            print("🚀 No retraining commanded! Skipping training step.")
-
-        return model
+    return model
 
 # model = train_text_to_sql(use_azure=True, use_dummy=False)
 #

@@ -74,12 +74,10 @@ azure_env = os.getenv("USE_AZURE", "true")
 dummy_env = os.getenv("USE_DUMMY", "false")
 retrain_vanna_env = os.getenv("RETRAIN_VANNA_MODEL", "false")
 
-using_azure = str(azure_env).strip().lower() == "true"
-using_dummy = str(dummy_env).strip().lower() == "true"
 retrain_vanna = str(retrain_vanna_env).strip().lower() == "true"
 
 model = train_text_to_sql(
-    use_azure=using_azure, use_dummy=using_dummy, retrain_vanna=retrain_vanna
+    retrain_vanna=retrain_vanna
 )
 
 
