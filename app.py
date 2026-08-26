@@ -202,7 +202,11 @@ def inject_results_into_graph(graph, config, db_context: str, df_results):
             {"messages": [{"role": "system", "content": (
                 "=== RETRIEVED STRUCTURED SQL DATA ===\n"
                 f"{db_context}\n"
-                "Blend these metrics into your final analysis answer where appropriate."
+                "Use this data as authoritative for company metrics, totals, spend and counts. "
+                "Any creation, ingestion or ETL date here is a Database Record Creation Date, "
+                "not a document publication/update date. For questions about when a report or "
+                "fact sheet was updated, use Document Publication Date from retrieved document "
+                "context instead. Address every part of a multi-part user question."
             )}]},
         )
 
@@ -228,11 +232,7 @@ def format_chat_history(graph_messages, ci_docs_urls: pd.DataFrame):
     for msg in graph_messages:
         role = "user" if msg.type == "human" else "assistant"
         if msg.content and msg.type in ("human", "ai"):
-            # User messages are HTML-escaped but never Markdown-normalised. The
-            # exact original value also remains available as raw_content.
-            rendered_content = (
-                escape(msg.content) if role == "user" else md.render(msg.content)
-            )
+            rendered_content = escape(msg.content) if role == "user" else md.render(msg.content)
             item = {
                 "role": role,
                 "content": rendered_content,
@@ -255,8 +255,6 @@ def home():
     config = {"configurable": {"thread_id": user_id}}
 
     if request.method == "POST":
-        # Keep this original request string for routing, state, logs and UI.
-        # Sanitisation/spell correction use separate local working variables.
         user_input = request.form.get("message")
         if user_input:
             try:
@@ -276,8 +274,6 @@ def home():
 
             graph = get_or_create_graph(user_id)
             route = classify_query_route(user_input)
-            # %r escapes control characters so one message cannot forge Azure
-            # log lines while retaining a reversible representation of input.
             logger.info(
                 "REQUEST_ROUTED route=%s user_id=%s user_input=%r",
                 route.value,
@@ -301,7 +297,6 @@ def home():
                 compiled_query, catalog_data=real_entities
             )
             inject_results_into_graph(graph, config, db_context, df_results)
-            # Persist/display the exact original, not the corrected routing copy.
             answer_once(graph, user_input, thread_id=user_id)
             attach_table_data_to_latest_ai_message(graph, config, table_data)
         return redirect(url_for("home"))
