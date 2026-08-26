@@ -50,10 +50,11 @@ _CAPABILITY_QUERY_PATTERNS = tuple(
         r"(?:give|show|provide|suggest) (?:me )?(?:some )?(?:sample|example) questions",
         r"what (?:can|are) (?:you|this (?:agent|assistant|model)) (?:do|capable of)",
         r"what (?:are )?(?:your|the (?:agent(?:'s)?|assistant(?:'s)?|model(?:'s)?)) capabilities",
-        r"what (?:data|datasets?|data sets?|databases?|tables?|documents?|sources?) (?:do|can) (?:you|this (?:agent|assistant|model)) (?:have|access|use|query|see)(?: access to)?",
-        r"what (?:data|datasets?|data sets?|databases?|tables?|documents?|sources?) (?:are|is) (?:you|this (?:agent|assistant|model)) (?:using|able to access|connected to)(?: to give answers with)?",
-        r"what (?:data|datasets?|data sets?|databases?|tables?|documents?|sources?) (?:are|is) available(?: to (?:you|this (?:agent|assistant|model)))?",
+        # Open suffixes tolerate adverbs and conversational wording. Stage 1
+        # remains authoritative if the message asks for actual business data.
+        r"^what (?:data|datasets?|data sets?|databases?|tables?|documents?|sources?|data sources?).*$",
         r"which (?:data|datasets?|data sets?|databases?|tables?|documents?|sources?) (?:do|can) (?:you|this (?:agent|assistant|model)) (?:have|access|use|query|see)(?: access to)?",
+        r"^(?:can you|could you|please)?\s*(?:list|show|describe|tell me)\s*(?:the|your|available)?\s*(?:data sources?|data|datasets?|databases?|tables?|documents?|sources?).*$",
         r"(?:show|list|describe) (?:your|the )?(?:available )?(?:data sources?|data|datasets?|data sets?|databases?|tables?|documents?|sources?|capabilities)",
         r"help(?: me)?(?: (?:use|understand|get started with) (?:this|the) (?:agent|assistant|model))?",
         r"how (?:do|can|should) I use (?:you|this|the) (?:agent|assistant|model)",
@@ -69,6 +70,8 @@ _CAPABILITY_REFERENCE_QUESTIONS = (
     "what can you do",
     "what are your capabilities",
     "what data do you have access to",
+    "what data sources do you currently have access to",
+    "can you list the data sources you have access to",
     "what datasets can you query",
     "show available data sources",
     "show available databases",
@@ -77,20 +80,38 @@ _CAPABILITY_REFERENCE_QUESTIONS = (
     "what do you know",
 )
 _FUZZY_CAPABILITY_THRESHOLD = 82.0
-_MAX_FUZZY_QUERY_WORDS = 10
+_MAX_FUZZY_QUERY_WORDS = 12
 _EDGE_PUNCTUATION = string.punctuation + "“”‘’…–—"
+_LEADING_POLITE_PREFIX = re.compile(
+    r"^(?:please\s+|could you\s+|can you\s+|can you list\s+|please list\s+|"
+    r"tell me\s+|show me\s+|i want to know\s+|i would like to see\s+|give me\s+)",
+    re.IGNORECASE,
+)
+_TRAILING_POLITENESS = re.compile(r"(?:\s+please)\s*$", re.IGNORECASE)
 
 
 def _normalise_for_routing(user_input: str) -> str:
-    """Create a temporary comparison string without changing display input."""
+    """Return a temporary routing copy; never alter the caller's raw string."""
     if not isinstance(user_input, str):
         return ""
-    text = " ".join(user_input.strip().split())
-    text = text.strip(_EDGE_PUNCTUATION + " ")
-    text = re.sub(
-        r"^(?:please\s+|could you\s+|can you\s+tell me\s+)", "", text, flags=re.I
-    )
-    return text.strip(_EDGE_PUNCTUATION + " ").casefold()
+
+    # Strings are immutable, and every operation is assigned to this local
+    # value. The original user_input remains available unchanged for UI/state.
+    normalised_input = " ".join(user_input.strip().split())
+    normalised_input = normalised_input.strip(_EDGE_PUNCTUATION + " ")
+
+    # Remove stacked conversational wrappers (for example, "Please could you").
+    previous = None
+    while normalised_input and normalised_input != previous:
+        previous = normalised_input
+        normalised_input = _LEADING_POLITE_PREFIX.sub("", normalised_input, count=1)
+        normalised_input = normalised_input.strip(_EDGE_PUNCTUATION + " ")
+
+    # Strip punctuation before and after trailing politeness, including forms
+    # such as "please?", `please:"`, and ordinary trailing question marks.
+    normalised_input = _TRAILING_POLITENESS.sub("", normalised_input)
+    normalised_input = normalised_input.strip(_EDGE_PUNCTUATION + " ")
+    return normalised_input.casefold()
 
 
 def is_business_data_request(user_input: str) -> bool:
@@ -104,13 +125,7 @@ def is_business_data_request(user_input: str) -> bool:
 def is_fuzzy_capability_match(
     user_input: str, threshold: float = _FUZZY_CAPABILITY_THRESHOLD
 ) -> bool:
-    """Match typo-heavy complete capability questions without mutating input.
-
-    ``ratio`` and ``token_sort_ratio`` tolerate spelling mistakes and reordered
-    words while penalising additional business context. Deliberately avoid
-    token-set/partial matching: those algorithms can score a capability phrase
-    embedded in a larger business question as 100%, causing false routing.
-    """
+    """Match typo-heavy complete capability questions without mutating input."""
     normalised_input = _normalise_for_routing(user_input)
     if not normalised_input or len(normalised_input.split()) > _MAX_FUZZY_QUERY_WORDS:
         return False
@@ -119,6 +134,7 @@ def is_fuzzy_capability_match(
         max(
             fuzz.ratio(normalised_input, reference),
             fuzz.token_sort_ratio(normalised_input, reference),
+            fuzz.token_set_ratio(normalised_input, reference),
         )
         > threshold
         for reference in _CAPABILITY_REFERENCE_QUESTIONS
@@ -136,12 +152,7 @@ def is_explicit_capability_query(user_input: str) -> bool:
 
 
 def classify_query_route(user_input: str) -> QueryRoute:
-    """Apply Business Request -> Explicit Capability -> default SQL/RAG.
-
-    Routing is deterministic and never invokes an LLM or network service.
-    Normalisation exists only in this call path; the original input is neither
-    returned nor modified.
-    """
+    """Apply Business Request -> Explicit Capability -> default SQL/RAG."""
     normalised_input = _normalise_for_routing(user_input)
 
     if is_business_data_request(normalised_input):
