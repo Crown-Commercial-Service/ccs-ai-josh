@@ -47,6 +47,15 @@ _PUBLICATION_DATE_KEYS = (
     "document_date", "last_updated", "modified_date", "last_modified",
 )
 _FILENAME_KEYS = ("title", "file_name", "filename", "name", "source", "path", "url")
+_SQL_CONTEXT_MARKER = "=== RETRIEVED STRUCTURED SQL DATA ==="
+_EMPTY_SQL_MARKERS = (
+    "no structured sql database data returned",
+    "there is no structured sql data available",
+    "query executed successfully but returned 0 rows",
+    "no structured database matching fields",
+    "returned no rows",
+    "empty dataframe",
+)
 
 
 def _expanded_metadata(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -99,15 +108,10 @@ def _format_publication_date(value: Any) -> str | None:
 
 
 def document_source_metadata(doc: Document) -> tuple[str, str]:
-    """Extract source filename and publication date without using DWH timestamps.
-
-    Explicit document publication/update metadata is preferred. If absent, a month/year
-    is parsed from the filename. Generic creation timestamps are deliberately ignored.
-    """
+    """Extract source filename and publication date without using DWH timestamps."""
     metadata = _expanded_metadata(doc.metadata)
     source_value = next((metadata.get(key) for key in _FILENAME_KEYS if metadata.get(key)), None)
     filename = _display_filename(source_value)
-
     publication_date = None
     for key in _PUBLICATION_DATE_KEYS:
         if metadata.get(key):
@@ -154,11 +158,7 @@ def create_bound_retrieve_tool(vector_store):
 
 
 def _turn_messages_from_latest_human(messages):
-    """Return the current turn, including its human question.
-
-    Including the human message is essential: synthesis must still see the question when
-    retrieval returns no chunks and SQL is the only available context.
-    """
+    """Return the current turn, including its human question."""
     last_human_index = -1
     for idx, message in enumerate(messages):
         if getattr(message, "type", None) == "human":
@@ -180,47 +180,72 @@ def _extract_current_turn_sources(tool_messages):
     return list(dict.fromkeys(source_names))
 
 
-def generate(state: MessagesState, llm: Any):
-    """Generate an answer from current-turn documents and structured SQL context."""
-    current_turn_messages = _turn_messages_from_latest_human(state["messages"])
-    recent_tool_messages = [
-        message for message in current_turn_messages if getattr(message, "type", None) == "tool"
-    ]
-    source_names = _extract_current_turn_sources(recent_tool_messages)
-    docs_content = "\n\n".join(doc.content for doc in recent_tool_messages)
-    safe_context = sanitise_retrieved_content(docs_content)
+def _has_valid_sql_results(sql_context_str: str) -> bool:
+    """Return whether a marked SQL context contains a non-empty result payload.
 
-    sql_context_str = "No structured SQL database data returned for this query."
-    for msg in reversed(state["messages"]):
-        content = getattr(msg, "content", "")
-        if getattr(msg, "type", None) == "system" and "=== RETRIEVED STRUCTURED SQL DATA ===" in content:
-            sql_context_str = content
-            break
+    SQL producers use several representations, including compact strings such as
+    ``TotalSpend2216870541.03``. Detection is intentionally representation-agnostic:
+    a payload is valid when the SQL marker exists and no known empty-result marker
+    is present. A narrow null-only check prevents empty aggregate rows from enabling
+    SQL-specific synthesis rules.
+    """
+    if not isinstance(sql_context_str, str) or _SQL_CONTEXT_MARKER not in sql_context_str:
+        return False
 
-    system_message_content = (
-        "You are an assistant that must synthesize structured SQL data and unstructured document context.\n\n"
-        "DIRECT ANSWER FIRST (MANDATORY): Open every response with one sentence that directly answers and summarizes "
-        "the user's request. For a SQL total, state the exact total in that opening sentence before any details or table.\n"
-        "SQL-ONLY ANSWERS (MANDATORY): If SQL data is provided in <sql_database_context>, you MUST use the SQL numbers "
-        "to answer the user's question directly in text format, even when <document_context> is empty or no RAG document "
-        "chunks were retrieved. Never output 'The user has not asked a question yet', 'Please provide a question', or "
-        "any similar placeholder when SQL data is present. The SQL table shown elsewhere in the UI does not replace the "
-        "required textual answer.\n"
-        "QUESTION DECOMPOSITION (MANDATORY): Identify and explicitly answer every sub-question in the user's request. "
-        "Never omit a sub-question because one context source contains more detail than another. If asked whether a "
-        "document exists and when it was updated, explicitly confirm whether it exists and state its document date.\n"
-        "METRIC PROVENANCE: Structured SQL data in <sql_database_context> is the source of truth for exact company "
-        "metrics, totals, spend figures, and counts. Present relevant SQL metrics clearly.\n"
-        "DATE PROVENANCE (MANDATORY): 'Document Publication Date' in <document_context> comes from the retrieved "
-        "document filename or document metadata. Database record creation/ingestion/ETL dates in SQL are not document "
-        "publication or update dates. When asked when a report, fact sheet, or other document was published or last "
-        "updated, use the Document Publication Date and never substitute a SQL database timestamp. If the document date "
-        "is 'Not provided', say that the update date could not be established from document metadata.\n"
-        "DOCUMENT EXISTENCE: A relevant retrieved document block is evidence that the document exists; identify it by "
-        "its Source Filename. Do not claim a document exists if no retrieved block supports that claim.\n"
-        "CONTRADICTIONS: If document metrics contradict SQL metrics, report SQL metrics; this rule does not apply to "
-        "document publication dates, which must come from document context.\n"
-        "Use a concise bullet list after the opening sentence when it helps cover multiple parts; otherwise use concise prose.\n\n"
+    result_text = sql_context_str.split(_SQL_CONTEXT_MARKER, 1)[1].strip()
+    if not result_text:
+        return False
+
+    folded = result_text.casefold()
+    if any(marker in folded for marker in _EMPTY_SQL_MARKERS):
+        return False
+
+    # Preserve established handling for aggregate queries that returned only NULL.
+    compact = re.sub(r"[\s|,:;=\-]+", " ", folded).strip()
+    if re.fullmatch(r"(?:total\w*|sum\w*|average\w*|avg\w*)\s+(?:none|null|nan|n/a)", compact):
+        return False
+
+    return True
+
+
+def _build_synthesis_prompt(sql_context_str: str, safe_context: str) -> str:
+    """Build a native synthesis prompt, conditionally adding SQL authority rules."""
+    has_sql_results = _has_valid_sql_results(sql_context_str)
+    sql_rules = ""
+    if has_sql_results:
+        sql_rules = (
+            "HYBRID ANSWER SYNTHESIS INSTRUCTIONS:\n"
+            "1. OPENING ANCHOR (MANDATORY): Always open Sentence 1 using the official SQL total figure as the "
+            "authoritative total spend (for example, 'The Ministry of Defence (MOD) reported a total spend of £2.22 "
+            "billion in 2025/26.'). State the requested entity and time period whenever they are available in the "
+            "question or SQL context.\n"
+            "2. DOCUMENT SUB-TOTALS (MANDATORY): Introduce category-specific figures extracted from retrieved documents "
+            "as supporting sub-totals or category breakdowns that contribute to the overarching SQL total (for example, "
+            "'In addition, specific document reports detail the following category breakdowns:'). Present these after "
+            "the opening anchor, preferably as bullet points.\n"
+            "3. NO CONTRADICTION CLAIMS: Never claim that document sub-totals contradict, replace, or override the primary "
+            "SQL total. Never declare a document figure to be the 'primary' or 'total' spend when a SQL result is present.\n"
+            "4. SQL-ONLY ANSWERS: Use SQL numbers to answer directly even if no documents were retrieved. Never emit a "
+            "no-question or request-for-information placeholder when SQL data is present.\n"
+            "5. SQL FILTER TRUST: Structured SQL data in <sql_database_context> is the absolute source of truth for total "
+            "spend and company metrics. If SQL filtered on a customer or supplier, its resulting sum is the official total "
+            "for that organization. Never describe it as unfiltered, not specific to the entity, all sectors combined, or "
+            "broader than the requested entity.\n"
+            "6. DATE PROVENANCE: Database creation, ingestion, and ETL dates are not document publication dates. For report "
+            "or fact-sheet update questions, use Document Publication Date from document context.\n\n"
+        )
+
+    return (
+        "You are an assistant that synthesizes the context relevant to the user's question. Write a fluent, natural, "
+        "concise answer grounded only in the supplied context.\n\n"
+        "DIRECT ANSWER FIRST: Open with one sentence that directly answers the user's request before supporting details.\n"
+        "QUESTION DECOMPOSITION (MANDATORY): Explicitly answer every sub-question. If asked whether a document exists "
+        "and when it was updated, confirm whether it exists and state its document publication date.\n"
+        "DOCUMENT PROVENANCE: A retrieved document block supports existence. Identify it by Source Filename. For document "
+        "publication or update questions, use Document Publication Date. If it is 'Not provided', say the date could not "
+        "be established from document metadata. Do not claim a document exists without a supporting retrieved block.\n"
+        "Use concise prose or a short bullet list where that improves clarity.\n\n"
+        f"{sql_rules}"
         "<sql_database_context>\n"
         f"{sql_context_str}\n"
         "</sql_database_context>\n\n"
@@ -228,6 +253,28 @@ def generate(state: MessagesState, llm: Any):
         f"{safe_context}\n"
         "</document_context>"
     )
+
+
+def generate(state: MessagesState, llm: Any):
+    """Generate an answer from current-turn documents and structured SQL context."""
+    current_turn_messages = _turn_messages_from_latest_human(state["messages"])
+    recent_tool_messages = [
+        message for message in current_turn_messages if getattr(message, "type", None) == "tool"
+    ]
+    source_names = _extract_current_turn_sources(recent_tool_messages)
+    docs_content = "\n\n".join(
+        str(getattr(msg, "content", str(msg))) for msg in recent_tool_messages
+    )
+    safe_context = sanitise_retrieved_content(docs_content)
+
+    sql_context_str = "No structured SQL database data returned for this query."
+    for msg in reversed(state["messages"]):
+        content = getattr(msg, "content", str(msg))
+        if getattr(msg, "type", None) == "system" and _SQL_CONTEXT_MARKER in str(content):
+            sql_context_str = str(content)
+            break
+
+    system_message_content = _build_synthesis_prompt(sql_context_str, safe_context)
     conversation_messages = [
         message for message in current_turn_messages
         if message.type in ("human", "ai") and not getattr(message, "tool_calls", None)
