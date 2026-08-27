@@ -8,50 +8,67 @@ import os
 
 SQL_entities_folder = Path(__file__).parents[1] / "SQL_entities"
 
+# Deterministic, high-confidence aliases. Keys are matched as complete words only.
+DOMAIN_ACRONYMS: dict[str, str] = {
+    "MOD": "Ministry of Defence",
+    "HMRC": "HM Revenue and Customs",
+    "NHS": "National Health Service",
+    "DWP": "Department for Work and Pensions",
+    "DFT": "Department for Transport",
+    "DFE": "Department for Education",
+    "HO": "Home Office",
+    "MOJ": "Ministry of Justice",
+}
+
+
+def expand_domain_acronyms(text: str) -> str:
+    """Expand known organisation acronyms using strict word boundaries."""
+    expanded = text
+    for acronym, canonical_name in DOMAIN_ACRONYMS.items():
+        expanded = re.sub(
+            rf"(?<!\w){re.escape(acronym)}(?!\w)",
+            lambda _match, value=canonical_name: value,
+            expanded,
+            flags=re.IGNORECASE,
+        )
+    return expanded
+
+
 def format_financial_years(text: str) -> str:
-    """Forces all financial year variations (including YYYY/YYYY) into the strict 'YYYY/YY' structure.
-
-    Examples:
-      - "spend in 2025/2026" -> "spend in 2025/26"
-      - "spend in 25/26"     -> "spend in 2025/26"
-      - "spend in 2025"      -> "spend in 2025/26"
-    """
-
-    # --- 1. Catch 4-digit to 4-digit ranges (e.g., '2025/2026' or '2024/2025') ---
-    # Looks for 4 digits, a slash, and another 4 digits
-    long_range_pattern = r'\b(\d{4})\s*/\s*(\d{2})(\d{2})\b'
+    """Force financial year variations into the strict ``YYYY/YY`` structure."""
+    long_range_pattern = r"\b(\d{4})\s*/\s*(\d{2})(\d{2})\b"
 
     def collapse_long_range(match):
-        start_yyyy = match.group(1)  # e.g., "2025"
-        end_yy = match.group(3)  # e.g., "26" (ignoring the "20" century part in group 2)
-        return f"{start_yyyy}/{end_yy}"
+        return f"{match.group(1)}/{match.group(3)}"
 
     text = re.sub(long_range_pattern, collapse_long_range, text)
 
-    # --- 2. Catch 2-digit shorthand ranges (e.g., '25/26' or '24/25') ---
-    # Looks for two digits, a slash, and two digits
-    short_range_pattern = r'\b(\d{2})\s*/\s*(\d{2})\b(?!\s/)'
+    short_range_pattern = r"\b(\d{2})\s*/\s*(\d{2})\b(?!\s/)"
 
     def expand_short_range(match):
-        start_yy = match.group(1)
-        end_yy = match.group(2)
-        return f"20{start_yy}/{end_yy}"
+        return f"20{match.group(1)}/{match.group(2)}"
 
     text = re.sub(short_range_pattern, expand_short_range, text)
 
-    # --- 3. Catch standalone 4-digit years (e.g., '2025' or '2026') ---
-    # Looks for a 4-digit year that isn't already followed by a slash /
-    four_digit_pattern = r'\b(19|20)(\d{2})\b(?!\s/)'
+    four_digit_pattern = r"\b(19|20)(\d{2})\b(?!\s/)"
 
     def expand_standalone_year(match):
-        century = match.group(1)  # e.g., "20"
-        short_yy = int(match.group(2))  # e.g., 25
-        next_yy = (short_yy + 1) % 100  # e.g., 26
+        century = match.group(1)
+        short_yy = int(match.group(2))
+        next_yy = (short_yy + 1) % 100
         return f"{century}{short_yy:02d}/{next_yy:02d}"
 
-    text = re.sub(four_digit_pattern, expand_standalone_year, text)
+    return re.sub(four_digit_pattern, expand_standalone_year, text)
 
-    return text
+
+def _replace_phrase_at_word_boundaries(text: str, phrase: str, replacement: str) -> str:
+    """Replace a correction only when the complete phrase is present."""
+    if not phrase:
+        return text
+    pattern = re.compile(
+        rf"(?<!\w){re.escape(str(phrase))}(?!\w)", flags=re.IGNORECASE
+    )
+    return pattern.sub(lambda _match: str(replacement), text)
 
 
 def spell_correct_user_query(
@@ -60,12 +77,12 @@ def spell_correct_user_query(
     json_name: str = "dummy_entities.json",
     catalog_data: dict[str, Any] | None = None,
 ) -> str:
-    """Fix financial years and map shorthand to official catalog entries.
+    """Fix financial years and map shorthand to official entity names.
 
-    ``catalog_data`` allows callers to supply a catalog loaded from an external
-    source. Existing callers can continue using ``json_name`` unchanged.
+    Known acronyms are expanded deterministically before invoking the translator,
+    so resolution does not depend on aliases being present in the JSON catalog.
     """
-    processed_input = format_financial_years(user_input)
+    processed_input = expand_domain_acronyms(format_financial_years(user_input))
 
     if catalog_data is None:
         json_path = os.path.join(SQL_entities_folder, json_name)
@@ -88,48 +105,58 @@ def spell_correct_user_query(
         'with its exact official translation string (e.g., {"BAEs": "BAE SYSTEMS APPLIED INTELLIGENCE LIMITED"}).\n'
         "3. Ignore financial years or numerical dates entirely; they have already been pre-formatted.\n"
         "4. If all names are perfectly spelled, or no terms match, output an empty JSON block: {}.\n"
-        "5. CRITICAL: Output ONLY valid JSON syntax. Do not write markdown, ```json fences, or chat commentary."
+        "5. Do not alter already-expanded government organisation names such as Ministry of Defence.\n"
+        "6. CRITICAL: Output ONLY valid JSON syntax. Do not write markdown, JSON fences, or commentary."
     )
 
     try:
-        response = llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=processed_input)
-        ])
-
+        response = llm.invoke(
+            [SystemMessage(content=system_prompt), HumanMessage(content=processed_input)]
+        )
         clean_json_string = (
             response.content.strip()
             .replace("```json", "")
             .replace("```", "")
             .strip()
         )
-
         corrections = json.loads(clean_json_string)
+        if not isinstance(corrections, dict):
+            raise ValueError("Entity translator response must be a JSON object")
 
         corrected_query = processed_input
         for typo_chunk, official_row_value in corrections.items():
-            insensitive_regex = re.compile(re.escape(typo_chunk), re.IGNORECASE)
-            corrected_query = insensitive_regex.sub(official_row_value, corrected_query)
-        print("this was used ")
+            corrected_query = _replace_phrase_at_word_boundaries(
+                corrected_query, str(typo_chunk), str(official_row_value)
+            )
         return corrected_query
-
     except Exception as err:
         print(f"⚠️ Grammar translation fallback active: {err}")
         return processed_input
 
 
-# =========================================================================
-# 🌟 THE SQL POST-PROCESSOR INTERCEPTOR
-# =========================================================================
+def _catalog_entries(catalog_data: dict[str, Any]) -> list[str]:
+    entries: list[str] = []
+    for key in ("suppliers", "frameworks", "customers"):
+        values = catalog_data.get(key, [])
+        if isinstance(values, list):
+            entries.extend(value for value in values if isinstance(value, str))
+    return entries
+
+
+def _escape_sql_literal(value: str) -> str:
+    return value.replace("'", "''")
+
+
 def harden_vanna_sql(
     sql_str: str,
     json_name: str = "dummy_entities.json",
     catalog_data: dict[str, Any] | None = None,
 ) -> str:
-    """Process Vanna SQL to improve database compatibility.
+    """Improve generated SQL without fuzzy or substring entity rewrites.
 
-    ``catalog_data`` allows callers to supply a catalog loaded from an external
-    source. Existing callers can continue using ``json_name`` unchanged.
+    Catalog replacement is exact and case-insensitive. Known standalone acronym
+    literals are an explicit high-confidence exception. Organisation predicates
+    tolerate casing, surrounding text and spacing variations. No training occurs.
     """
     if not sql_str:
         return sql_str
@@ -143,37 +170,63 @@ def harden_vanna_sql(
             print(f"⚠️ SQL post-processor failed to load entity catalog: {err}")
             catalog_data = {}
 
-    validation_catalog = (
-        catalog_data.get("suppliers", []) + catalog_data.get("frameworks", [])
+    exact_catalog = {
+        entry.strip().casefold(): entry for entry in _catalog_entries(catalog_data or {})
+    }
+    acronym_lookup = {key.casefold(): value for key, value in DOMAIN_ACRONYMS.items()}
+    canonical_to_acronym = {
+        canonical.casefold(): acronym for acronym, canonical in DOMAIN_ACRONYMS.items()
+    }
+
+    # Limit rewriting to known entity columns and simple single-quoted equality
+    # predicates. This intentionally excludes arbitrary literals and expressions.
+    entity_pattern = re.compile(
+        r"(?P<column>(?:(?:\[[^\]]+\]|\w+)\s*\.\s*)?"
+        r"(?P<field>\[?(?:SupplierName|CustomerName|Framework)\]?))"
+        r"\s*=\s*'(?P<value>(?:''|[^'])*)'",
+        flags=re.IGNORECASE,
     )
 
-    entity_pattern = r"(\b(?:SupplierName|Framework)\s*=\s*['\"])([^'\"]+)(['\"])"
+    def harden_entity_predicate(match: re.Match) -> str:
+        column = match.group("column")
+        field = match.group("field").strip("[]").casefold()
+        current_value = match.group("value").replace("''", "'").strip()
+        folded_value = current_value.casefold()
 
-    def replace_with_catalog_entry(match):
-        prefix = match.group(1)
-        current_val = match.group(2)
-        suffix = match.group(3)
+        # Exact catalog matches may restore official casing. Substring matches are
+        # forbidden: "MOD" must never select a historic entry merely ending in MOD.
+        resolved_value = exact_catalog.get(folded_value, current_value)
+        if folded_value in acronym_lookup:
+            resolved_value = acronym_lookup[folded_value]
 
-        for entry in validation_catalog:
-            if current_val.lower() in entry.lower():
-                return f"{prefix}{entry}{suffix}"
+        escaped = _escape_sql_literal(resolved_value)
+        if field == "framework":
+            return f"{column} = '{escaped}'"
 
-        return match.group(0)
+        compact = _escape_sql_literal(re.sub(r"\s+", "", resolved_value))
+        alternatives = [
+            f"LOWER({column}) = LOWER('{escaped}')",
+            f"LOWER({column}) LIKE LOWER('%{escaped}%')",
+            f"LOWER(REPLACE({column}, ' ', '')) LIKE LOWER('%{compact}%')",
+        ]
 
-    sql_str = re.sub(entity_pattern, replace_with_catalog_entry, sql_str, flags=re.IGNORECASE)
+        # A canonical name may still be stored as the bare acronym. Match only
+        # exact acronym values; never use '%MOD%', which could include dead agencies.
+        acronym = canonical_to_acronym.get(resolved_value.casefold())
+        if acronym:
+            alternatives.append(f"LOWER({column}) = LOWER('{acronym}')")
+        return f"({' OR '.join(alternatives)})"
+
+    sql_str = entity_pattern.sub(harden_entity_predicate, sql_str)
 
     sql_safe_year_pattern = r"(=\s*|IN\s*\(\s*)['\"](\d{4})['\"]"
 
     def replace_with_range(match):
         prefix = match.group(1)
         year_str = match.group(2)
-        short_yy = int(year_str[2:])
-        next_yy = (short_yy + 1) % 100
-
-        if "IN" in prefix:
+        next_yy = (int(year_str[2:]) + 1) % 100
+        if "IN" in prefix.upper():
             return f"{prefix}'{year_str}/{next_yy:02d}'"
         return f"= '{year_str}/{next_yy:02d}'"
 
-    sql_str = re.sub(sql_safe_year_pattern, replace_with_range, sql_str)
-
-    return sql_str
+    return re.sub(sql_safe_year_pattern, replace_with_range, sql_str, flags=re.IGNORECASE)
