@@ -1,5 +1,5 @@
-# AI Josh
-An AI-powered assistant to answer questions about the contents of documents.
+# PathFinder
+An AI-powered assistant to answer questions about the contents of documents and databases.
 
 ## Installation
 1. Make sure you have python3 installed on your computer
