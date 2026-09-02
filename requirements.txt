@@ -70,6 +70,7 @@ charset-normalizer==3.5.1
 click==8.5.0
     # via
     #   flask
+    #   huggingface-hub
     #   pip-tools
     #   uvicorn
     #   vanna
@@ -85,25 +86,36 @@ distro==1.9.0
     # via
     #   langsmith
     #   openai
+fastembed==0.8.0
+    # via -r requirements.in
 feedback-mechanism @ git+https://github.com/DavisAgyemang/Universal_Feedback_tool.git@18008c7d02ae6a0748958ec9f6339bed43f5564c
     # via -r requirements.in
+filelock==3.32.5
+    # via huggingface-hub
 flask==3.1.2
     # via -r requirements.in
+flatbuffers==25.12.19
+    # via onnxruntime
 frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
+fsspec==2026.7.0
+    # via huggingface-hub
 h11==0.16.0
     # via
     #   httpcore
     #   httpcore2
     #   uvicorn
+hf-xet==1.6.0
+    # via huggingface-hub
 httpcore==1.0.9
     # via httpx
 httpcore2==2.12.0
     # via httpx2
 httpx==0.28.1
     # via
+    #   huggingface-hub
     #   langgraph-sdk
     #   openai
     #   vanna
@@ -111,6 +123,10 @@ httpx-sse==0.4.3
     # via langchain-community
 httpx2==2.12.0
     # via langsmith
+huggingface-hub==1.29.0
+    # via
+    #   fastembed
+    #   tokenizers
 idna==3.19
     # via
     #   anyio
@@ -179,6 +195,8 @@ langsmith==0.12.1
     #   langchain
     #   langchain-community
     #   langchain-core
+loguru==0.7.3
+    # via fastembed
 markupsafe==3.0.3
     # via
     #   flask
@@ -186,6 +204,8 @@ markupsafe==3.0.3
     #   werkzeug
 marshmallow==3.26.2
     # via dataclasses-json
+mmh3==5.3.0
+    # via fastembed
 msal==1.38.0
     # via
     #   azure-identity
@@ -203,8 +223,12 @@ narwhals==2.25.0
 numpy==2.4.6
     # via
     #   -r requirements.in
+    #   fastembed
     #   langchain-community
+    #   onnxruntime
     #   pandas
+onnxruntime==1.29.0
+    # via fastembed
 openai==1.109.1
     # via langchain-openai
 orjson==3.12.0
@@ -216,9 +240,11 @@ ormsgpack==1.12.2
 packaging==24.2
     # via
     #   build
+    #   huggingface-hub
     #   langchain-core
     #   langsmith
     #   marshmallow
+    #   onnxruntime
     #   plotly
     #   pytest
     #   wheel
@@ -227,6 +253,8 @@ pandas==3.0.5
     #   ccs-web-api
     #   feedback-mechanism
     #   vanna
+pillow==12.3.0
+    # via fastembed
 pip-tools==7.6.1
     # via -r requirements.in
 plotly==7.0.0
@@ -237,6 +265,10 @@ propcache==0.5.2
     # via
     #   aiohttp
     #   yarl
+protobuf==7.36.1
+    # via onnxruntime
+py-rust-stemmers==0.1.8
+    # via fastembed
 pycparser==3.0
     # via cffi
 pydantic==2.13.4
@@ -277,6 +309,7 @@ python-dotenv==1.2.3
     #   pydantic-settings
 pyyaml==6.0.3
     # via
+    #   huggingface-hub
     #   langchain
     #   langchain-community
     #   langchain-core
@@ -290,6 +323,7 @@ requests==2.32.5
     #   -r requirements.in
     #   azure-core
     #   ccs-web-api
+    #   fastembed
     #   langchain
     #   langchain-community
     #   langsmith
@@ -323,8 +357,13 @@ tenacity==9.1.4
     #   langchain-core
 tiktoken==0.14.0
     # via langchain-openai
+tokenizers==0.23.1
+    # via fastembed
 tqdm==4.70.0
-    # via openai
+    # via
+    #   fastembed
+    #   huggingface-hub
+    #   openai
 truststore==0.10.4
     # via
     #   httpcore2
@@ -343,6 +382,7 @@ typing-extensions==4.16.0
     #   azure-storage-file-datalake
     #   beautifulsoup4
     #   httpx2
+    #   huggingface-hub
     #   langchain-core
     #   langsmith
     #   openai
