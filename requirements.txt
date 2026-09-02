@@ -198,8 +198,9 @@ mypy-extensions==1.1.0
     # via typing-inspect
 narwhals==2.25.0
     # via plotly
-numpy==2.5.2
+numpy==2.4.6
     # via
+    #   -r requirements.in
     #   langchain-community
     #   pandas
 openai==1.109.1

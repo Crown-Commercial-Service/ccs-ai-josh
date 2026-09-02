@@ -14,6 +14,7 @@ langgraph-sdk==0.1.72
 langgraph_checkpoint_cosmosdb==0.2.5
 vanna==2.0.2
 RapidFuzz==3.14.3
+numpy<2.5.0
 
 # Azure & Search
 azure-search-documents==11.5.3
