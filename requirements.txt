@@ -157,7 +157,7 @@ pydantic_core==2.41.4
 pydot==4.0.1
 pygit2==1.18.2
 Pygments==2.19.2
-pygtrie==1.0.0
+pygtrie==2.5.0
 PyJWT==2.10.1
 pyparsing==3.2.5
 pytest
