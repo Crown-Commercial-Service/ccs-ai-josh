@@ -1,0 +1,40 @@
+# requirements.in - Primary Project Dependencies
+# Base Tools
+pip
+pip-tools
+
+# Core Agent Frameworks
+langchain==0.3.26
+langchain-community==0.3.27
+langchain-core==0.3.68
+langchain-openai==0.3.28
+langgraph==0.5.1
+langgraph-checkpoint==2.1.0
+langgraph-sdk==0.1.72
+langgraph_checkpoint_cosmosdb==0.2.5
+vanna==2.0.2
+RapidFuzz==3.14.3
+
+# Azure & Search
+azure-search-documents==11.5.3
+azure-identity==1.23.0
+azure-storage-blob==12.30.0
+azure-storage-file-datalake==12.25.0
+azure-cosmos==4.15.0
+
+# Database & SQL
+pyodbc==5.3.0
+SQLAlchemy==2.0.44
+pymssql==2.3.13
+python-dotenv
+
+# Web Server & API
+Flask==3.1.2
+uvicorn==0.49.0
+requests==2.32.5
+pydantic==2.13.4
+
+# Git / Universal Custom Repos
+-e git+https://github.com/Crown-Commercial-Service/ccs-ai-josh@33aaec591e98513ccc490d3b00d70b49b2769dcc#egg=ccs_ai_josh
+ccs_web_api @ git+https://github.com/DavisAgyemang/ccss_web_api_tool.git@1f0fd2fb7b6b4d05126c7f41edf9b28992ff54f4
+feedback_mechanism @ git+https://github.com/DavisAgyemang/Universal_Feedback_tool.git@18008c7d02ae6a0748958ec9f6339bed43f5564c
