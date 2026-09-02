@@ -118,6 +118,8 @@ idna==3.19
     #   httpx2
     #   requests
     #   yarl
+iniconfig==2.3.0
+    # via pytest
 isodate==0.7.2
     # via
     #   azure-data-tables
@@ -218,6 +220,7 @@ packaging==24.2
     #   langsmith
     #   marshmallow
     #   plotly
+    #   pytest
     #   wheel
 pandas==3.0.5
     # via
@@ -228,6 +231,8 @@ pip-tools==7.6.1
     # via -r requirements.in
 plotly==7.0.0
     # via vanna
+pluggy==1.6.0
+    # via pytest
 propcache==0.5.2
     # via
     #   aiohttp
@@ -248,6 +253,8 @@ pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.15.0
     # via langchain-community
+pygments==2.21.0
+    # via pytest
 pyjwt[crypto]==2.13.0
     # via
     #   msal
@@ -260,6 +267,8 @@ pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
+pytest==9.1.1
+    # via -r requirements.in
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.2.3

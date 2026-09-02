@@ -15,7 +15,7 @@ langgraph_checkpoint_cosmosdb==0.2.5
 vanna==2.0.2
 RapidFuzz==3.14.3
 numpy<2.5.0
-
+pytest
 # Azure & Search
 azure-search-documents==11.5.3
 azure-identity==1.23.0
