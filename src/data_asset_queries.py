@@ -221,7 +221,7 @@ def build_data_asset_answer(assets: Mapping[str, str]) -> str:
             "**For example, you can ask:**",
             "- What was the total evidenced spend for this year?",
             "- Can you give me top 5 companies with the highest spend?",
-            "- Who is the CEO of BAE system?",
+            "- Who is the CEO of BAE systems?",
         ]
     )
 

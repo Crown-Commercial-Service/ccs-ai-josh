@@ -33,6 +33,14 @@ _EXAMPLE_PAIR_PATTERN = re.compile(
     r"(?:\r?\n)+\s*```sql\s*(?P<sql>.*?)```",
     flags=re.IGNORECASE | re.DOTALL,
 )
+_TIME_PERIOD_SQL_RULE = (
+    "MANDATORY TIME-PERIOD SQL RULE: When a request specifies a financial year, "
+    "relative year (including 'this year' or 'last year'), or date range and the SQL "
+    "filters on that period, include the corresponding period column in SELECT beside "
+    "every aggregate. For example use SELECT FinancialYear, SUM(EvidencedSpend) AS "
+    "TotalEvidencedSpend ... GROUP BY FinancialYear. Never return a naked aggregate "
+    "without the requested period identifier."
+)
 
 
 class AzureTextToSQL(AzureAISearch_VectorStore, OpenAI_Chat):
@@ -98,12 +106,7 @@ class AzureTextToSQL(AzureAISearch_VectorStore, OpenAI_Chat):
     def _search_azure_index(
         self, question: str, training_type: str, limit: int = 5
     ) -> list:
-        """Search a broad vector pool, then filter by our JSON metadata type.
-
-        The custom index stores metadata as a JSON string, so Azure cannot reliably
-        apply a field-level type filter. Fetching only ``limit`` neighbours can
-        therefore return entirely different training record types.
-        """
+        """Search a broad vector pool, then filter by our JSON metadata type."""
         from azure.search.documents.models import VectorizedQuery
 
         if limit <= 0:
@@ -152,10 +155,15 @@ class AzureTextToSQL(AzureAISearch_VectorStore, OpenAI_Chat):
         return [item["content"] for item in self._search_azure_index(question, "ddl")]
 
     def get_related_documentation(self, question: str, **kwargs) -> list:
-        return [
+        """Return retrieved guidance plus invariant runtime SQL-generation rules."""
+        documentation = [
             item["content"]
             for item in self._search_azure_index(question, "documentation")
         ]
+        # Inject this at generation time so correctness does not depend on retraining
+        # or on the time-period guidance being among the nearest vector neighbours.
+        documentation.append(_TIME_PERIOD_SQL_RULE)
+        return documentation
 
 
 def initialise_agent():
@@ -202,7 +210,6 @@ def add_context_training_documents(model) -> int:
     if not examples_document:
         return 0
 
-    # Keep the full corpus available as narrative context as well as SQL pairs.
     model.add_documentation(examples_document)
     examples = parse_question_sql_examples(examples_document)
     for question, sql in examples:
