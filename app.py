@@ -17,7 +17,6 @@ from flask import Flask, jsonify, redirect, render_template, request, session, u
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
-from markdown_it import MarkdownIt
 from markupsafe import escape
 
 from Feedback.feedback_mechanism import FeedbackMechanism
@@ -27,6 +26,7 @@ from src.data_asset_queries import (
     answer_data_asset_query,
     classify_query_route,
 )
+from src.markdown_rendering import render_markdown_content
 from src.multiturn_utils import answer_once, build_graph, format_sources
 from src.query_correction_engine import harden_vanna_sql, spell_correct_user_query
 from src.sanitise import PromptInjectionError, sanitise_user_input
@@ -70,7 +70,6 @@ llm = AzureChatOpenAI(
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     temperature=0.0,
 )
-md = MarkdownIt()
 checkpointer = CosmosDBSaver(
     database_name=os.getenv("COSMOS_DB_NAME"),
     container_name=os.getenv("COSMOS_CONTAINER_NAME"),
@@ -232,7 +231,11 @@ def format_chat_history(graph_messages, ci_docs_urls: pd.DataFrame):
     for msg in graph_messages:
         role = "user" if msg.type == "human" else "assistant"
         if msg.content and msg.type in ("human", "ai"):
-            rendered_content = escape(msg.content) if role == "user" else md.render(msg.content)
+            rendered_content = (
+                escape(msg.content)
+                if role == "user"
+                else render_markdown_content(msg.content)
+            )
             item = {
                 "role": role,
                 "content": rendered_content,
@@ -243,7 +246,9 @@ def format_chat_history(graph_messages, ci_docs_urls: pd.DataFrame):
             if role == "assistant":
                 names = msg.additional_kwargs.get("source_names", [])
                 if names and not ci_docs_urls.empty:
-                    item["sources"] = md.render(format_sources(names, ci_docs_urls))
+                    item["sources"] = render_markdown_content(
+                        format_sources(names, ci_docs_urls)
+                    )
             formatted.append(item)
     return formatted
 

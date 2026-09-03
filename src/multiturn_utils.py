@@ -181,30 +181,18 @@ def _extract_current_turn_sources(tool_messages):
 
 
 def _has_valid_sql_results(sql_context_str: str) -> bool:
-    """Return whether a marked SQL context contains a non-empty result payload.
-
-    SQL producers use several representations, including compact strings such as
-    ``TotalSpend2216870541.03``. Detection is intentionally representation-agnostic:
-    a payload is valid when the SQL marker exists and no known empty-result marker
-    is present. A narrow null-only check prevents empty aggregate rows from enabling
-    SQL-specific synthesis rules.
-    """
+    """Return whether a marked SQL context contains a non-empty result payload."""
     if not isinstance(sql_context_str, str) or _SQL_CONTEXT_MARKER not in sql_context_str:
         return False
-
     result_text = sql_context_str.split(_SQL_CONTEXT_MARKER, 1)[1].strip()
     if not result_text:
         return False
-
     folded = result_text.casefold()
     if any(marker in folded for marker in _EMPTY_SQL_MARKERS):
         return False
-
-    # Preserve established handling for aggregate queries that returned only NULL.
     compact = re.sub(r"[\s|,:;=\-]+", " ", folded).strip()
     if re.fullmatch(r"(?:total\w*|sum\w*|average\w*|avg\w*)\s+(?:none|null|nan|n/a)", compact):
         return False
-
     return True
 
 
@@ -220,11 +208,11 @@ def _build_synthesis_prompt(sql_context_str: str, safe_context: str) -> str:
             "billion in 2025/26.'). State the requested entity and time period whenever they are available in the "
             "question or SQL context.\n"
             "2. DOCUMENT SUB-TOTALS (MANDATORY): Introduce category-specific figures extracted from retrieved documents "
-            "as supporting sub-totals or category breakdowns that contribute to the overarching SQL total (for example, "
-            "'In addition, specific document reports detail the following category breakdowns:'). Present these after "
-            "the opening anchor, preferably as bullet points.\n"
-            "3. NO CONTRADICTION CLAIMS: Never claim that document sub-totals contradict, replace, or override the primary "
-            "SQL total. Never declare a document figure to be the 'primary' or 'total' spend when a SQL result is present.\n"
+            "as supporting sub-totals or category breakdowns that contribute to the overarching SQL total. Present these "
+            "after the opening anchor, preferably as bullet points.\n"
+            "3. NO CONTRADICTION CLAIMS: Never claim that document sub-totals replace or override the primary SQL total. "
+            "Never declare a document figure to be the primary or total spend when a SQL result is present. A difference "
+            "in scope or scale must still be reported clearly; it is not evidence that the authoritative SQL total is wrong.\n"
             "4. SQL-ONLY ANSWERS: Use SQL numbers to answer directly even if no documents were retrieved. Never emit a "
             "no-question or request-for-information placeholder when SQL data is present.\n"
             "5. SQL FILTER TRUST: Structured SQL data in <sql_database_context> is the absolute source of truth for total "
@@ -233,6 +221,24 @@ def _build_synthesis_prompt(sql_context_str: str, safe_context: str) -> str:
             "broader than the requested entity.\n"
             "6. DATE PROVENANCE: Database creation, ingestion, and ETL dates are not document publication dates. For report "
             "or fact-sheet update questions, use Document Publication Date from document context.\n\n"
+            "### CRITICAL INSTRUCTION: Data Comparison & Source Reconciliation Rules\n"
+            "Whenever comparing factsheet/document data against SQL database data:\n"
+            "1. NEVER COPY SQL VALUES INTO FACTSHEET COLUMNS:\n"
+            "- A Factsheet or Document column MUST ONLY contain numbers explicitly written in the retrieved document text "
+            "(for example, £226.9M in Contact Centres).\n"
+            "- NEVER place SQL figures (for example, £15.34B or £14.24B) under a Document or Factsheet column. Maintain "
+            "strict source attribution for every value.\n"
+            "2. MANDATORY NUMERIC & SCOPE COMPARISON:\n"
+            "- BOTH columns in the comparison table MUST include numeric spend values. NEVER output entity names without their corresponding spend figures in either column.\n"
+            "- In the Factsheet column, you MUST include the exact category breakdown figures found in the text (for example: 'DWP (£226.9M Contact Centres / £199.6M Software)' or 'MOD (£285.9M Software)').\n"
+            "- If no factsheet figure exists for an entity in the SQL top 5, write 'Not Reported in Category Factsheets' in the Factsheet cell. Do not leave the numeric spend blank.\n"
+            "3. STRICT ALIGNMENT GUARDRAIL:\n"
+             "- Your conclusion MUST explicitly state: 'No, the factsheet data and SQL data do NOT match.'\n"
+            "- You are STRICTLY FORBIDDEN from using phrases like 'largely consistent', 'partially align', 'mostly agree', or 'show consistency'.\n"
+            "- You MUST explain that entity name overlap is coincidental and that category-level spend (£100M+ range) cannot be equated to total organizational spend (£10B+ range).\n"
+            "4. PARTIAL DOCUMENT COVERAGE: If factsheet totals are missing, partial, or restricted to market reports, "
+            "explicitly state that the factsheets report partial category spend and do not contain a matching total-spend "
+            "list. Never manufacture a factsheet total from SQL data.\n\n"
         )
 
     return (
@@ -244,6 +250,8 @@ def _build_synthesis_prompt(sql_context_str: str, safe_context: str) -> str:
         "DOCUMENT PROVENANCE: A retrieved document block supports existence. Identify it by Source Filename. For document "
         "publication or update questions, use Document Publication Date. If it is 'Not provided', say the date could not "
         "be established from document metadata. Do not claim a document exists without a supporting retrieved block.\n"
+        "MARKDOWN TABLE FORMAT: When using a Markdown table, include a blank line before the table and a blank line after "
+        "the table. Do not place table rows directly adjacent to prose or list items.\n"
         "Use concise prose or a short bullet list where that improves clarity.\n\n"
         f"{sql_rules}"
         "<sql_database_context>\n"
@@ -285,7 +293,7 @@ def generate(state: MessagesState, llm: Any):
 
 
 def stream_turn(graph, user_input: str, thread_id: str = "abc123", stream_mode: str = "values") -> Iterator[Dict[str, Any]]:
-    """Stream a single user turn through the graph."""
+    """Stream a single turn through the graph."""
     config = {"configurable": {"thread_id": thread_id}}
     yield from graph.stream(
         {"messages": [{"role": "user", "content": user_input}]},
