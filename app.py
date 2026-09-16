@@ -91,7 +91,7 @@ def load_real_entities() -> dict | None:
         if not container_name:
             raise ValueError("REAL_ENTITIES_CONTAINER environment variable is required.")
         blob_client = _get_blob_service_client().get_blob_client(
-            container=container_name, blob="real_entities.json"
+            container=container_name, blob="real_entities2.json"
         )
         entities = json.loads(blob_client.download_blob().readall())
         if not isinstance(entities, dict):
