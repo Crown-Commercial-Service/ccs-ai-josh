@@ -150,7 +150,7 @@ def build_history_context(graph_messages) -> str:
 
 
 def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
-    db_context, raw_ui_data, df_results = "", [], None
+    db_context, raw_ui_data, df_results, generated_sql = "", [], None, None
     try:
         try:
             generated_sql = model.generate_sql(compiled_query)
@@ -164,7 +164,12 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
             generated_sql = None
         if not generated_sql or not str(generated_sql).strip():
             logger.warning("VANNA_GENERATION_EMPTY")
-            return None, [], "There is no structured SQL data available for this query."
+            return (
+                None,
+                [],
+                "There is no structured SQL data available for this query.",
+                None,
+            )
 
         generated_sql = harden_vanna_sql(generated_sql, catalog_data=catalog_data)
         logger.info("SQL_HARDENING_COMPLETED sql_length=%d", len(generated_sql))
@@ -177,13 +182,13 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
                     summary += f"- Total Sum of {col}: {df_results[col].sum():,.2f}\n"
                     summary += f"- Average of {col}: {df_results[col].mean():,.2f}\n"
                 db_context = (
-                    f"--- DATA OVERVIEW (COMPLETE REFRESH: {len(df_results)} ROWS) ---\n"
-                    f"Calculated Aggregates across all rows:\n{summary}\n"
-                    "--- STRUCTURE SAMPLE (FIRST 5 ROWS) ---\n"
-                    f"{df_results.head(5).to_string(index=False)}"
+                    f"Data Overview (complete result: {len(df_results)} rows)\n\n"
+                    f"Calculated aggregates across all rows:\n{summary}\n"
+                    "First 5 rows:\n\n"
+                    f"{df_results.head(5).to_markdown(index=False)}"
                 )
             else:
-                db_context = df_results.to_string(index=False)
+                db_context = df_results.to_markdown(index=False)
             logger.info("SQL_EXECUTION_COMPLETED row_count=%d", len(df_results))
         else:
             db_context = "The query executed successfully but returned 0 rows matching these parameters."
@@ -191,15 +196,20 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
     except Exception as exc:
         logger.exception("SQL_PIPELINE_FAILED error_type=%s", type(exc).__name__)
         db_context = "No structured database matching fields."
-    return df_results, raw_ui_data, db_context
+    return df_results, raw_ui_data, db_context, generated_sql
 
 
-def inject_results_into_graph(graph, config, db_context: str, df_results):
+def inject_results_into_graph(
+    graph, config, generated_sql: str, db_context: str, df_results
+):
     if df_results is not None and not df_results.empty:
         graph.update_state(
             config,
             {"messages": [{"role": "system", "content": (
                 "=== RETRIEVED STRUCTURED SQL DATA ===\n"
+                "Executed SQL Query:\n"
+                f"{generated_sql}\n\n"
+                "Execution Results:\n"
                 f"{db_context}\n"
                 "Use this data as authoritative for company metrics, totals, spend and counts. "
                 "Any creation, ingestion or ETL date here is a Database Record Creation Date, "
@@ -298,10 +308,12 @@ def home():
                 user_input=sanitised_input, llm=llm, catalog_data=real_entities
             )
             compiled_query = f"Context:\n{history}Current Request: {corrected}"
-            df_results, table_data, db_context = run_sql_pipeline(
+            df_results, table_data, db_context, generated_sql = run_sql_pipeline(
                 compiled_query, catalog_data=real_entities
             )
-            inject_results_into_graph(graph, config, db_context, df_results)
+            inject_results_into_graph(
+                graph, config, generated_sql, db_context, df_results
+            )
             answer_once(graph, user_input, thread_id=user_id)
             attach_table_data_to_latest_ai_message(graph, config, table_data)
         return redirect(url_for("home"))
