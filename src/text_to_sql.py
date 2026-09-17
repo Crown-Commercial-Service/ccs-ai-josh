@@ -183,11 +183,11 @@ def _load_context_document(filename: str):
 
 
 def load_row_snippet():
-    return _load_context_document("row_snippet_new3.md")
+    return _load_context_document("row_snippet_new4.md")
 
 
 def load_examples_document():
-    return _load_context_document("examples2.md")
+    return _load_context_document("examples3.md")
 
 
 def parse_question_sql_examples(documentation: str) -> list[tuple[str, str]]:
