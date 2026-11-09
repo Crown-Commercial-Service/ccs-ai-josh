@@ -76,9 +76,7 @@ def _display_filename(value: Any) -> str:
 
 
 def _format_publication_date(value: Any) -> str | None:
-    if isinstance(value, datetime):
-        return value.strftime("%B %Y")
-    if isinstance(value, date):
+    if isinstance(value, (datetime, date)):
         return value.strftime("%B %Y")
     if value is None:
         return None
@@ -136,18 +134,57 @@ def create_bound_retrieve_tool(vector_store):
     return retrieve_bound
 
 
+def _message_type(message: Any) -> str | None:
+    """Return the LangChain message type for object and dictionary messages."""
+    if hasattr(message, "type"):
+        return message.type
+    if isinstance(message, Mapping):
+        return message.get("type") or message.get("role")
+    return None
+
+
+def _message_content(message: Any) -> Any:
+    if isinstance(message, Mapping):
+        return message.get("content", "")
+    return getattr(message, "content", str(message))
+
+
 def _turn_messages_from_latest_human(messages):
+    """Return the latest turn; retained for retrieval artifact/source scoping only."""
     last_human_index = -1
     for idx, message in enumerate(messages):
-        if getattr(message, "type", None) == "human":
+        if _message_type(message) in ("human", "user"):
             last_human_index = idx
     return messages[last_human_index:] if last_human_index >= 0 else messages
+
+
+def _conversation_messages(messages):
+    """Keep all user/assistant dialogue so follow-up temporal references retain context.
+
+    Tool-call assistant messages and tool payloads are deliberately excluded: their
+    useful data is supplied separately in the SQL/document context blocks.
+    """
+    dialogue = []
+    for message in messages:
+        message_type = _message_type(message)
+        if message_type not in ("human", "user", "ai", "assistant"):
+            continue
+        tool_calls = (
+            message.get("tool_calls") if isinstance(message, Mapping)
+            else getattr(message, "tool_calls", None)
+        )
+        if tool_calls:
+            continue
+        dialogue.append(message)
+    return dialogue
 
 
 def _extract_current_turn_sources(tool_messages):
     source_names = []
     for message in tool_messages:
         artifact = getattr(message, "artifact", None)
+        if not artifact and isinstance(message, Mapping):
+            artifact = message.get("artifact")
         if not artifact:
             continue
         for doc in artifact:
@@ -159,7 +196,7 @@ def _extract_current_turn_sources(tool_messages):
 
 
 def _has_valid_sql_results(sql_context_str: str) -> bool:
-    """Accept any marked payload except a known-empty or null-only result."""
+    """Accept any marked SQL payload except a known-empty or null-only result."""
     if not isinstance(sql_context_str, str) or _SQL_CONTEXT_MARKER not in sql_context_str:
         return False
     result_text = sql_context_str.split(_SQL_CONTEXT_MARKER, 1)[1].strip()
@@ -175,84 +212,76 @@ def _has_valid_sql_results(sql_context_str: str) -> bool:
 
 
 def _build_synthesis_prompt(sql_context_str: str, safe_context: str) -> str:
-    """Build the synthesis prompt; SQL authority rules are conditional on valid results."""
+    """Build a synthesis prompt with SQL rules only when a valid result is present."""
     sql_rules = ""
     if _has_valid_sql_results(sql_context_str):
         sql_rules = (
-            "HYBRID ANSWER SYNTHESIS & STRICT DATA HIERARCHY INSTRUCTIONS:\n"
-            "1. SQL DATA ABSOLUTE PRIORITY: Structured SQL data in <sql_database_context> is the SINGLE SOURCE OF TRUTH "
-            "for all numerical spend figures, customer breakdowns, and supplier totals. NEVER prioritize PDF market reports "
-            "or unstructured document figures over structured SQL database results.\n"
-            "2. SQL QUERY PROVENANCE (MANDATORY): Inspect the Executed SQL Query section inside <sql_database_context> "
-            "before interpreting the Execution Results table. You MUST inspect its WHERE clause and apply every supplier, "
-            "customer, date, and other filter to every returned row. If the WHERE clause filters by a supplier (for example, "
-            "Accenture), you MUST treat all rows in the Execution Results table as belonging specifically to that supplier, "
-            "even when the supplier name is not repeated as a result column.\n"
-            "3. NO DENIAL HALLUCINATIONS: When valid SQL results are present, NEVER use denial phrases such as "
-            "'this data does not specify', 'without linking to specific suppliers', or 'only lists total spend by customer'. "
-            "Do not claim that the SQL database lacks the requested supplier breakdown when the WHERE clause establishes it.\n"
-            "4. OPENING ANCHOR (MANDATORY): Sentence 1 MUST open directly by attributing the returned figures to the "
-            "supplier filtered in the SQL WHERE clause (for example, 'For Accenture, the top customers by spend are...'). "
-            "State the requested entity and time period whenever available in the question, conversation, SQL query, or result.\n"
-            "5. DOCUMENT SUB-TOTALS & MARKET REPORTS: PDF market reports and unstructured documents provide partial or "
-            "qualitative context only. Never claim they override, replace, or contradict the primary SQL totals. Report genuine "
-            "scope differences clearly without casting doubt on the authoritative filtered SQL total.\n"
-            "6. SQL-ONLY ANSWERS: Use SQL numbers to answer directly even if no documents were retrieved. Never emit a "
-            "no-question or request-for-information placeholder when SQL data is present.\n"
-            "7. DATE PROVENANCE: Database creation, ingestion, and ETL dates are not document publication dates. For report "
-            "or fact-sheet update questions, use Document Publication Date from document context.\n\n"
+            "HYBRID ANSWER SYNTHESIS INSTRUCTIONS & STRICT DATA HIERARCHY:\n"
+            "1. SQL DATA ABSOLUTE PRIORITY: Structured SQL data in <sql_database_context> is the absolute source of truth "
+            "and the SINGLE SOURCE OF TRUTH for numerical spend figures, customer breakdowns, and supplier totals. Answer "
+            "with the SQL result first. NEVER prioritize PDF market reports or unstructured figures over SQL results.\n"
+            "2. CALENDAR AND FINANCIAL-YEAR ANCHOR (MANDATORY): The current calendar year is 2026 and the current financial "
+            "year is 2026/27. Therefore 'this year' means FY 2026/27, while 'last year' and 'previous financial year' mean "
+            "FY 2025/26. A returned SQL row for 2025/26 is the correct direct answer to 'What about last year?'. NEVER "
+            "reinterpret 'last year' as 2024/25.\n"
+            "3. FOLLOW-UP RESOLUTION: Use the complete conversation history to resolve pronouns, omitted metrics, entities, "
+            "and relative dates. For example, after asking for 'total evidenced spend for this year', 'what about last year?' "
+            "means total evidenced spend for FY 2025/26.\n"
+            "4. SQL QUERY PROVENANCE (MANDATORY): Inspect the Executed SQL Query section and its WHERE clause. Apply every "
+            "supplier, customer, date, and other filter to every result row, even if a filtered field is omitted from SELECT.\n"
+            "5. NO DENIAL HALLUCINATIONS: If a valid SQL result answers the request, do not say it is unavailable, not directly "
+            "provided, outside the covered period, or that documents must substitute for it. In particular, do not claim SQL "
+            "only covers 2025/26 when the user asks for last year: 2025/26 is exactly last year under the calendar anchor.\n"
+            "6. OPENING ANCHOR (MANDATORY): Sentence 1 MUST directly state the requested SQL answer, entity, metric, and FY. "
+            "For an organizational total, treat it as the official total for that organization.\n"
+            "7. DOCUMENT SUB-TOTALS (MANDATORY): Only after the direct SQL answer, introduce retrieved material with wording "
+            "such as 'I also found information in the documents...' and present it as secondary supporting sub-totals or "
+            "category breakdowns. Never let documents override or replace the SQL answer.\n"
+            "8. NO CONTRADICTION CLAIMS: Explain genuine scope differences without casting doubt on the SQL total.\n"
+            "9. SQL-ONLY ANSWERS: Use SQL numbers directly even when no documents were retrieved.\n"
+            "10. DATE PROVENANCE: Database creation, ingestion, and ETL dates are not document publication dates.\n\n"
             "### CRITICAL INSTRUCTION: Data Comparison & Source Reconciliation Rules\n"
-            "Whenever comparing factsheet/document data against SQL database data:\n"
-            "1. NEVER COPY SQL VALUES INTO FACTSHEET COLUMNS:\n"
-            "- A Factsheet or Document column MUST ONLY contain numbers explicitly written in retrieved document text. "
-            "NEVER place SQL figures under a Document or Factsheet column.\n"
-            "2. MANDATORY NUMERIC & SCOPE COMPARISON:\n"
-            "- Both comparison columns must include the available spend figures and their scope. In the Factsheet column, "
-            "include exact category figures found in the text. If no organization total is explicitly reported, state "
-            "'Not Reported as Total' or 'Category Spend Only'; do not infer, calculate, or borrow a total from SQL.\n"
-            "3. STRICT ALIGNMENT GUARDRAIL:\n"
-            "- The conclusion must state that category-specific factsheet spend DOES NOT match total organizational SQL "
-            "spend. Do not claim alignment or consistency based only on entity-name overlap.\n"
-            "4. PARTIAL DOCUMENT COVERAGE: Explicitly state when factsheets report partial category spend and do not "
-            "contain a matching total-spend list. Never manufacture a factsheet total from SQL data.\n\n"
+            "1. NEVER COPY SQL VALUES INTO FACTSHEET COLUMNS: A Factsheet or Document column MUST ONLY contain numbers "
+            "explicitly written in retrieved document text.\n"
+            "2. MANDATORY NUMERIC & SCOPE COMPARISON: If no document total is explicitly reported, state 'Not Reported as "
+            "Total' or 'Category Spend Only'; do not infer, calculate, or borrow a total from SQL.\n"
+            "3. STRICT ALIGNMENT GUARDRAIL: Category-specific factsheet spend DOES NOT match total organizational SQL spend.\n"
+            "4. PARTIAL DOCUMENT COVERAGE: Never manufacture a factsheet total from SQL data.\n\n"
         )
 
     return (
-        "You are an assistant that synthesizes the context relevant to the user's question. Write a fluent, natural, "
-        "concise answer grounded only in the supplied context.\n\n"
+        "You are an assistant that synthesizes context relevant to the user's question. Write a fluent, natural, concise "
+        "answer grounded only in the supplied context.\n\n"
         "DIRECT ANSWER FIRST: Open with one sentence that directly answers the user's request before supporting details.\n"
-        "QUESTION DECOMPOSITION (MANDATORY): Explicitly answer every sub-question. If asked whether a document exists "
-        "and when it was updated, confirm whether it exists and state its document publication date.\n"
-        "DOCUMENT PROVENANCE: A retrieved document block supports existence. Identify it by Source Filename. For document "
-        "publication or update questions, use Document Publication Date. If it is 'Not provided', say the date could not "
-        "be established from document metadata. Do not claim a document exists without a supporting retrieved block.\n"
-        "MARKDOWN TABLE FORMAT: Include a blank line before and after every Markdown table. Do not place table rows "
-        "directly adjacent to prose or list items.\nUse concise prose or a short bullet list where useful.\n\n"
+        "QUESTION DECOMPOSITION (MANDATORY): Explicitly answer every sub-question.\n"
+        "DOCUMENT PROVENANCE: Identify supporting documents by Source Filename and use Document Publication Date for "
+        "publication/update questions. Do not claim a document exists without a supporting retrieved block.\n"
+        "MARKDOWN TABLE FORMAT: Include a blank line before and after every Markdown table.\n\n"
         f"{sql_rules}<sql_database_context>\n{sql_context_str}\n</sql_database_context>\n\n"
         f"<document_context>\n{safe_context}\n</document_context>"
     )
 
 
 def generate(state: MessagesState, llm: Any):
-    current_turn_messages = _turn_messages_from_latest_human(state["messages"])
-    recent_tool_messages = [m for m in current_turn_messages if getattr(m, "type", None) == "tool"]
+    all_messages = state["messages"]
+
+    # Scope retrieved artifacts to this turn, but do not scope dialogue to this turn:
+    # earlier user/assistant messages are essential for resolving follow-up questions.
+    current_turn_messages = _turn_messages_from_latest_human(all_messages)
+    recent_tool_messages = [m for m in current_turn_messages if _message_type(m) == "tool"]
     source_names = _extract_current_turn_sources(recent_tool_messages)
-    docs_content = "\n\n".join(str(getattr(msg, "content", str(msg))) for msg in recent_tool_messages)
+    docs_content = "\n\n".join(str(_message_content(msg)) for msg in recent_tool_messages)
     safe_context = sanitise_retrieved_content(docs_content)
 
     sql_context_str = "No structured SQL database data returned for this query."
-    for msg in reversed(state["messages"]):
-        content = getattr(msg, "content", str(msg))
-        if getattr(msg, "type", None) == "system" and _SQL_CONTEXT_MARKER in str(content):
+    for msg in reversed(all_messages):
+        content = _message_content(msg)
+        if _message_type(msg) == "system" and _SQL_CONTEXT_MARKER in str(content):
             sql_context_str = str(content)
             break
 
     prompt = _build_synthesis_prompt(sql_context_str, safe_context)
-    conversation_messages = [
-        message for message in current_turn_messages
-        if getattr(message, "type", None) in ("human", "ai") and not getattr(message, "tool_calls", None)
-    ]
-    response = llm.invoke([SystemMessage(prompt), *conversation_messages])
+    response = llm.invoke([SystemMessage(prompt), *_conversation_messages(all_messages)])
     response.additional_kwargs["source_names"] = source_names
     return {"messages": [response]}
 
@@ -272,14 +301,9 @@ def answer_once(graph, user_input: str, thread_id: str = "abc123", state_pre_upd
             msg = messages[-1]
             last_ai_content = getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", last_ai_content)
 
-    def _mtype(message):
-        if hasattr(message, "type"):
-            return message.type
-        return (message.get("type") or message.get("role")) if isinstance(message, dict) else None
-
     source_names, source_contents = [], []
     for message in reversed(final_messages):
-        if _mtype(message) == "tool":
+        if _message_type(message) == "tool":
             artifact = getattr(message, "artifact", None)
             if artifact:
                 for doc in artifact:
