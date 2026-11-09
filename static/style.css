@@ -81,9 +81,7 @@
 }
 
 @keyframes app-spin {
-    to {
-        transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
 }
 
 .app-chat-window {
@@ -101,13 +99,8 @@
     margin-bottom: 0.75rem;
 }
 
-.chat-message.user {
-    justify-content: flex-end;
-}
-
-.chat-message.assistant {
-    justify-content: flex-start;
-}
+.chat-message.user { justify-content: flex-end; }
+.chat-message.assistant { justify-content: flex-start; }
 
 .message-content {
     max-width: min(80ch, 82%);
@@ -125,12 +118,31 @@
     border: 1px solid #d8d8d8;
 }
 
-.chat-message.user .message-content a {
-    color: #fff;
+.chat-message.user .message-content a { color: #fff; }
+.app-message-text > *:last-child { margin-bottom: 0; }
+
+/* Uses the GOV.UK warning accent while retaining the standard assistant bubble. */
+.app-inline-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.45rem;
+    color: #594d00;
+    font-size: 0.875rem;
+    font-weight: 700;
 }
 
-.app-message-text > *:last-child {
-    margin-bottom: 0;
+.app-inline-warning__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: #ffdd00;
+    color: #0b0c0c;
+    font-size: 0.85rem;
+    line-height: 1;
 }
 
 .app-input-form {
@@ -167,26 +179,16 @@
     line-height: 1;
 }
 
-.feedback-btn:hover {
-    background: #f3f2f1;
-}
+.feedback-btn:hover { background: #f3f2f1; }
 
 .feedback-selected {
     border-color: #1d70b8;
     box-shadow: 0 0 0 2px #1d70b8;
 }
 
-.sources-expander {
-    margin-top: 0.75rem;
-}
-
-.sources-content a {
-    word-break: break-word;
-}
-
-.disclaimer {
-    margin: 0.75rem 0 0;
-}
+.sources-expander { margin-top: 0.75rem; }
+.sources-content a { word-break: break-word; }
+.disclaimer { margin: 0.75rem 0 0; }
 
 .modal-overlay {
     position: fixed;
@@ -227,9 +229,7 @@
         padding: 0.75rem;
     }
 
-    .message-content {
-        max-width: 92%;
-    }
+    .message-content { max-width: 92%; }
 
     .app-input-form {
         flex-direction: column;
