@@ -13,14 +13,15 @@ import pandas as pd
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 from langchain_community.vectorstores.azuresearch import AzureSearch
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from markupsafe import escape
 
 from Feedback.feedback_mechanism import FeedbackMechanism
 from langgraph_checkpoint_cosmosdb import CosmosDBSaver
+from src.content_filtering import register_openai_error_handler
 from src.data_asset_queries import (
     QueryRoute,
     answer_data_asset_query,
@@ -164,12 +165,7 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
             generated_sql = None
         if not generated_sql or not str(generated_sql).strip():
             logger.warning("VANNA_GENERATION_EMPTY")
-            return (
-                None,
-                [],
-                "There is no structured SQL data available for this query.",
-                None,
-            )
+            return None, [], "There is no structured SQL data available for this query.", None
 
         generated_sql = harden_vanna_sql(generated_sql, catalog_data=catalog_data)
         logger.info("SQL_HARDENING_COMPLETED sql_length=%d", len(generated_sql))
@@ -199,9 +195,7 @@ def run_sql_pipeline(compiled_query: str, catalog_data: dict | None = None):
     return df_results, raw_ui_data, db_context, generated_sql
 
 
-def inject_results_into_graph(
-    graph, config, generated_sql: str, db_context: str, df_results
-):
+def inject_results_into_graph(graph, config, generated_sql: str, db_context: str, df_results):
     if df_results is not None and not df_results.empty:
         graph.update_state(
             config,
@@ -241,11 +235,7 @@ def format_chat_history(graph_messages, ci_docs_urls: pd.DataFrame):
     for msg in graph_messages:
         role = "user" if msg.type == "human" else "assistant"
         if msg.content and msg.type in ("human", "ai"):
-            rendered_content = (
-                escape(msg.content)
-                if role == "user"
-                else render_markdown_content(msg.content)
-            )
+            rendered_content = escape(msg.content) if role == "user" else render_markdown_content(msg.content)
             item = {
                 "role": role,
                 "content": rendered_content,
@@ -256,11 +246,65 @@ def format_chat_history(graph_messages, ci_docs_urls: pd.DataFrame):
             if role == "assistant":
                 names = msg.additional_kwargs.get("source_names", [])
                 if names and not ci_docs_urls.empty:
-                    item["sources"] = render_markdown_content(
-                        format_sources(names, ci_docs_urls)
-                    )
+                    item["sources"] = render_markdown_content(format_sources(names, ci_docs_urls))
             formatted.append(item)
     return formatted
+
+
+def _message_id(message):
+    if isinstance(message, dict):
+        return message.get("id")
+    return getattr(message, "id", None)
+
+
+def _capture_failed_turn_baseline(graph, config) -> None:
+    """Record message IDs before processing; this metadata is not LLM history."""
+    state = graph.get_state(config)
+    g.security_graph = graph
+    g.security_graph_config = config
+    g.security_baseline_message_ids = {
+        message_id
+        for message_id in (_message_id(message) for message in state.values.get("messages", []))
+        if message_id
+    }
+
+
+def _remove_failed_turn_from_graph() -> None:
+    """Remove a rejected prompt and intermediate messages from LangGraph."""
+    graph = getattr(g, "security_graph", None)
+    config = getattr(g, "security_graph_config", None)
+    if graph is None or config is None:
+        return
+    baseline = getattr(g, "security_baseline_message_ids", set())
+    state = graph.get_state(config)
+    new_ids = [
+        message_id
+        for message_id in (_message_id(message) for message in state.values.get("messages", []))
+        if message_id and message_id not in baseline
+    ]
+    if new_ids:
+        graph.update_state(
+            config,
+            {"messages": [RemoveMessage(id=message_id) for message_id in new_ids]},
+        )
+
+
+def _current_formatted_history():
+    """Supply existing history for a styled browser error response."""
+    user_id = session.get("user_id")
+    if not user_id or user_id not in graphs:
+        return []
+    config = {"configurable": {"thread_id": user_id}}
+    state = graphs[user_id].get_state(config)
+    return format_chat_history(state.values.get("messages", []), load_ci_docs_urls())
+
+
+register_openai_error_handler(
+    app,
+    history_provider=_current_formatted_history,
+    failed_turn_cleanup=_remove_failed_turn_from_graph,
+    logger=logger,
+)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -288,6 +332,7 @@ def home():
                 return redirect(url_for("home"))
 
             graph = get_or_create_graph(user_id)
+            _capture_failed_turn_baseline(graph, config)
             route = classify_query_route(user_input)
             logger.info(
                 "REQUEST_ROUTED route=%s user_id=%s user_input=%r",
@@ -311,9 +356,7 @@ def home():
             df_results, table_data, db_context, generated_sql = run_sql_pipeline(
                 compiled_query, catalog_data=real_entities
             )
-            inject_results_into_graph(
-                graph, config, generated_sql, db_context, df_results
-            )
+            inject_results_into_graph(graph, config, generated_sql, db_context, df_results)
             answer_once(graph, user_input, thread_id=user_id)
             attach_table_data_to_latest_ai_message(graph, config, table_data)
         return redirect(url_for("home"))
@@ -321,9 +364,7 @@ def home():
     formatted_history = []
     if user_id in graphs:
         state = graphs[user_id].get_state(config)
-        formatted_history = format_chat_history(
-            state.values.get("messages", []), ci_docs_urls
-        )
+        formatted_history = format_chat_history(state.values.get("messages", []), ci_docs_urls)
     return render_template(
         "index.html",
         messages=formatted_history,
